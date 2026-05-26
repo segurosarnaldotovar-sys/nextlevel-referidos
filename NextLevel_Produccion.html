@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sistema de Referidos — Next Level</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0d0f14;--bg2:#13161d;--bg3:#1a1e28;--bg4:#222636;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e8eaf0;--text2:#8a8fa8;--text3:#555a70;
+  --purple:#7c6af7;--purple2:#9d8fff;--purple-bg:rgba(124,106,247,0.12);
+  --teal:#2dd6a0;--teal-bg:rgba(45,214,160,0.1);
+  --amber:#f5a623;--amber-bg:rgba(245,166,35,0.1);
+  --red:#f0545c;--red-bg:rgba(240,84,92,0.1);
+  --green:#3ddc84;--green-bg:rgba(61,220,132,0.1);
+  --blue:#4da3f5;--blue-bg:rgba(77,163,245,0.1);
+  --gt-gold:#D4A017;--gt-gold2:#F5C842;--gt-gold-bg:rgba(212,160,23,0.12);
+  --radius:10px;--radius-lg:16px;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.shell{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
+.content{padding:28px;flex:1}
+.sidebar-logo{padding:16px 16px 14px;border-bottom:1px solid var(--border)}
+.logo-sub{font-size:10px;color:var(--gt-gold);margin-top:5px;font-family:var(--mono);letter-spacing:1.5px;font-weight:500}
+.nav{padding:12px 10px;flex:1;overflow-y:auto}
+.nav-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;padding:10px 10px 5px;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:400;transition:.15s;margin-bottom:1px;border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--purple-bg);color:var(--purple2);font-weight:500}
+.nav-item.gt-item.active{background:var(--gt-gold-bg);color:var(--gt-gold2)}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600}
+.role-chip{margin:0 10px 12px;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:10px 12px}
+.role-chip-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.role-chip-name{font-size:13px;font-weight:500;margin-top:3px}
+.role-chip-sub{font-size:10px;color:var(--text3);margin-top:1px;font-family:var(--mono)}
+.page-title{font-size:17px;font-weight:600;letter-spacing:-.2px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--purple-bg);border:2px solid var(--purple);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--purple2);cursor:pointer;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px}
+.grid-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.metric-val{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.metric-label{font-size:12px;color:var(--text3);margin-top:4px}
+.metric-sub{font-size:11px;margin-top:6px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-new{background:var(--amber-bg);color:var(--amber)}
+.badge-quoted{background:var(--blue-bg);color:var(--blue)}
+.badge-waiting{background:var(--purple-bg);color:var(--purple2)}
+.badge-sold{background:var(--green-bg);color:var(--green)}
+.badge-nope{background:var(--red-bg);color:var(--red)}
+.badge-approved{background:var(--teal-bg);color:var(--teal)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:.15s;font-family:var(--font)}
+.btn-primary{background:var(--purple);color:#fff}.btn-primary:hover{background:#6a59e0}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(240,84,92,0.2)}
+.btn-success{background:var(--green-bg);color:var(--green);border:1px solid rgba(61,220,132,0.2)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.5px;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.td-name{font-weight:500}.td-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+label{font-size:12px;color:var(--text2);font-weight:500}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:9px 13px;font-family:var(--font);transition:.15s;width:100%}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,106,247,0.12)}
+select option{background:var(--bg3)}
+textarea{resize:vertical;min-height:72px}
+.country-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.country-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:11px;cursor:pointer;text-align:center;transition:.15s;color:var(--text2);font-size:12px;font-weight:500}
+.country-btn:hover{border-color:var(--border);color:var(--text)}
+.country-btn.sel{background:var(--purple-bg);border-color:var(--purple);color:var(--purple2)}
+.country-btn.sel-gt{background:var(--gt-gold-bg);border-color:var(--gt-gold);color:var(--gt-gold2)}
+.country-flag{font-size:22px;display:block;margin-bottom:4px}
+.prod-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:14px 10px;cursor:pointer;text-align:center;transition:.15s;color:var(--text2);font-size:12px;font-weight:500;user-select:none}
+.prod-btn:hover{border-color:var(--border);color:var(--text);background:var(--bg4)}
+.prod-btn.sel{background:var(--purple-bg);border-color:var(--purple);color:var(--purple2)}
+.ref-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;transition:.15s}
+.ref-card:hover{border-color:var(--border2)}
+.ref-card.new-pulse{border-color:rgba(245,166,35,.35);animation:newpulse 2.5s ease-in-out infinite}
+@keyframes newpulse{0%,100%{border-color:rgba(245,166,35,.35)}50%{border-color:rgba(245,166,35,.7)}}
+.gt-card{background:var(--bg2);border:1px solid rgba(212,160,23,.2);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;transition:.15s}
+.gt-card:hover{border-color:rgba(212,160,23,.4)}
+.ref-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.ref-title{font-size:14px;font-weight:600}
+.ref-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.ref-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.comm-chip{background:var(--green-bg);border:1px solid rgba(61,220,132,0.2);border-radius:7px;padding:5px 12px;font-size:12px;color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+.gt-comm-chip{background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.25);border-radius:7px;padding:5px 12px;font-size:12px;color:var(--gt-gold2);font-weight:600;display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+.gt-prod-chip{background:var(--gt-gold-bg);color:var(--gt-gold2);border:1px solid rgba(212,160,23,.3);font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px}
+.gt-badge{display:inline-flex;align-items:center;gap:5px;background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.3);color:var(--gt-gold2);padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600}
+.gt-header-bar{background:linear-gradient(135deg,rgba(26,42,94,.6),rgba(212,160,23,.15));border:1px solid rgba(212,160,23,.25);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.gt-header-title{font-size:15px;font-weight:600;color:var(--gt-gold2)}
+.gt-metric{background:linear-gradient(135deg,rgba(26,42,94,.4),rgba(212,160,23,.08));border:1px solid rgba(212,160,23,.2);border-radius:var(--radius)}
+.time-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:6px;font-weight:500}
+.time-chip.fresh{background:var(--green-bg);color:var(--green)}
+.time-chip.medium{background:var(--amber-bg);color:var(--amber)}
+.time-chip.slow{background:var(--red-bg);color:var(--red)}
+.agent-contact{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-top:10px;display:flex;align-items:center;gap:12px}
+.agent-avatar{width:34px;height:34px;border-radius:50%;background:var(--purple-bg);border:1.5px solid var(--purple);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--purple2);flex-shrink:0}
+.notes-feed{margin-top:10px}
+.note-item{background:var(--bg3);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px}
+.note-item-header{display:flex;justify-content:space-between;margin-bottom:4px}
+.note-author{font-size:11px;font-weight:600;color:var(--purple2)}
+.note-time{font-size:10px;color:var(--text3)}
+.note-text{font-size:12px;color:var(--text);line-height:1.5}
+.add-note-row{display:flex;gap:8px;margin-top:8px}
+.add-note-row input{flex:1;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:7px 10px;font-family:var(--font)}
+.add-note-row input:focus{outline:none;border-color:var(--purple)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;width:500px;max-width:94vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+.close-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;margin-left:auto;border-radius:6px;font-size:16px}
+.close-btn:hover{color:var(--text);background:var(--bg3)}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-size:14px;font-weight:600}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.notif-bell{position:relative;cursor:pointer;width:36px;height:36px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;transition:.15s}
+.notif-bell:hover{background:var(--bg4)}
+.notif-count{position:absolute;top:4px;right:4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 4px;min-width:16px;text-align:center;display:none;line-height:14px}
+.notif-count.show{display:block}
+.notif-panel{position:fixed;top:60px;right:16px;width:340px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:300;display:none;max-height:480px;overflow-y:auto}
+.notif-panel.show{display:block}
+.notif-panel-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.notif-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:.15s}
+.notif-item:hover{background:var(--bg3)}
+.notif-item.unread{background:rgba(124,106,247,0.06)}
+.notif-item-title{font-size:12px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px}
+.notif-item-body{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.5}
+.notif-item-time{font-size:10px;color:var(--text3);margin-top:4px}
+.date-filter-bar{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.df-pills{display:flex;gap:6px;flex-wrap:wrap}
+.df-pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:.15s;font-family:var(--font)}
+.df-pill:hover{border-color:var(--purple);color:var(--purple2)}
+.df-pill.active{background:var(--purple-bg);border-color:var(--purple);color:var(--purple2)}
+.df-separator{width:1px;height:24px;background:var(--border);margin:0 4px}
+.df-date-input{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:6px 10px;font-family:var(--font);width:140px}
+.df-date-input:focus{outline:none;border-color:var(--purple)}
+.df-date-input::-webkit-calendar-picker-indicator{filter:invert(0.5)}
+.df-apply{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;background:var(--purple);color:#fff;border:none;font-family:var(--font)}
+.df-result-label{font-size:11px;color:var(--text3);margin-left:auto}
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.auth-box{width:420px;max-width:95vw}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px}
+.photo-upload{width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px dashed var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:.15s;overflow:hidden;flex-shrink:0}
+.photo-upload:hover{border-color:var(--purple)}
+.photo-upload img{width:100%;height:100%;object-fit:cover}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);z-index:500;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none;display:flex;align-items:center;gap:10px;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:var(--bg)}
+.loading-screen p{color:var(--text3);font-size:13px}
+.hidden{display:none!important}
+.fade-in{animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingScreen" class="loading-screen">
+  <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+  <p>Cargando Sistema de Referidos...</p>
+</div>
+
+<!-- AUTH -->
+<div id="authScreen" class="auth-screen hidden">
+<div class="auth-box">
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="font-size:28px;font-weight:700;letter-spacing:-.5px">Next <span style="color:#7c6af7">Level</span></div>
+    <div style="font-size:13px;color:var(--text3);margin-top:6px">Sistema de Referidos</div>
+  </div>
+  <div class="auth-card">
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Usuario</label>
+      <input type="text" id="loginUser" placeholder="tu.usuario" autocapitalize="none" autocomplete="username"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div id="authError" style="display:none;background:var(--red-bg);border:1px solid rgba(240,84,92,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:14px;text-align:center"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="loginBtn" onclick="doLogin()">
+      Entrar
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- APP -->
+<div id="appShell" class="shell hidden">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div style="font-size:16px;font-weight:700;color:var(--text)">Next <span style="color:#7c6af7">Level</span></div>
+    <div class="logo-sub">SISTEMA DE REFERIDOS</div>
+  </div>
+  <nav class="nav" id="sideNav"></nav>
+  <div class="role-chip" id="roleChip"></div>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="page-title" id="pageTitle">Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <div id="topbarBadge"></div>
+      <div class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-count" id="notifCount"></span>
+      </div>
+      <div class="avatar" id="userAvatar"></div>
+    </div>
+  </div>
+  <div class="content" id="mainContent"></div>
+</div>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-header">
+    <span style="font-size:13px;font-weight:600">🔔 Notificaciones</span>
+    <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Marcar leídas</button>
+  </div>
+  <div id="notifList"></div>
+</div>
+
+<!-- MODAL: Nuevo Referido -->
+<div class="modal-bg" id="modalNuevoRef">
+<div class="modal">
+  <div class="modal-title">
+    ➕ <span id="modalRefTitle">Nuevo referido</span>
+    <button class="close-btn" onclick="closeModal('modalNuevoRef')">✕</button>
+  </div>
+  <div class="form-group" style="margin-bottom:14px">
+    <label>País del cliente</label>
+    <div class="country-grid">
+      <div class="country-btn sel" id="cbtn-ve" onclick="selCountry('ve')"><span class="country-flag">🇻🇪</span>Venezuela</div>
+      <div class="country-btn" id="cbtn-do" onclick="selCountry('do')"><span class="country-flag">🇩🇴</span>R. Dominicana</div>
+      <div class="country-btn" id="cbtn-co" onclick="selCountry('co')"><span class="country-flag">🇨🇴</span>Colombia</div>
+      <div class="country-btn" id="cbtn-us" onclick="selCountry('us')" style="border-color:rgba(212,160,23,.3)"><span class="country-flag">🇺🇸</span>USA</div>
+    </div>
+  </div>
+  <div id="gtBanner" style="display:none;background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.25);border-radius:9px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px">
+    <span style="font-size:20px">🏅</span>
+    <div><div style="font-size:12px;font-weight:600;color:var(--gt-gold2)">Este referido irá al equipo GoldenTrust</div>
+    <div style="font-size:11px;color:var(--text3)">Seguros locales USA · Autos $25 fijo · Casa y Comercial 20%</div></div>
+  </div>
+  <div class="form-grid" style="margin-bottom:14px">
+    <div class="form-group"><label>Nombre del cliente</label><input type="text" id="rn" placeholder="Nombre completo"/></div>
+    <div class="form-group"><label>Teléfono / WhatsApp</label><input type="tel" id="rph" placeholder="+58 412..."/></div>
+    <div class="form-group full"><label>Email del cliente</label><input type="email" id="rem" placeholder="cliente@email.com"/></div>
+    <div class="form-group full" id="intlProducts">
+      <label>Tipo de seguro</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+        <div class="prod-btn sel" id="pbtn-auto" onclick="selectProduct('auto')"><span style="font-size:22px;display:block;margin-bottom:4px">🚗</span>Seguro de autos</div>
+        <div class="prod-btn" id="pbtn-salud" onclick="selectProduct('salud')"><span style="font-size:22px;display:block;margin-bottom:4px">🏥</span>Seguro de salud</div>
+        <div class="prod-btn" id="pbtn-comercial2" onclick="selectProduct('comercial2')"><span style="font-size:22px;display:block;margin-bottom:4px">🏢</span>Seguros comerciales</div>
+        <div class="prod-btn" id="pbtn-personalizado" onclick="selectProduct('personalizado')"><span style="font-size:22px;display:block;margin-bottom:4px">✏️</span>Personalizado</div>
+      </div>
+      <div class="form-group" id="customProductField" style="display:none;margin-top:10px">
+        <label>Especifica el tipo de seguro</label>
+        <input type="text" id="rprod-custom" placeholder="Ej: Seguro de vida, seguro de viaje..."/>
+      </div>
+    </div>
+    <div class="form-group full" id="gtProducts" style="display:none">
+      <label>Tipo de seguro — GoldenTrust</label>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px">
+        <div class="prod-btn sel" id="gtpbtn2-auto" onclick="selectGTProd2('auto')" style="border-color:rgba(212,160,23,.4)"><span style="font-size:22px;display:block;margin-bottom:4px">🚗</span><div>Autos</div><div style="font-size:10px;color:var(--gt-gold2);font-weight:600">$25 fijo</div></div>
+        <div class="prod-btn" id="gtpbtn2-casa" onclick="selectGTProd2('casa')"><span style="font-size:22px;display:block;margin-bottom:4px">🏠</span><div>Casa</div><div style="font-size:10px;color:var(--text3)">20%</div></div>
+        <div class="prod-btn" id="gtpbtn2-comercial" onclick="selectGTProd2('comercial')"><span style="font-size:22px;display:block;margin-bottom:4px">🏢</span><div>Comercial</div><div style="font-size:10px;color:var(--text3)">20%</div></div>
+        <div class="prod-btn" id="gtpbtn2-personalizado" onclick="selectGTProd2('personalizado')"><span style="font-size:22px;display:block;margin-bottom:4px">✏️</span><div>Personalizado</div><div style="font-size:10px;color:var(--text3)">20%</div></div>
+      </div>
+      <div id="gtCustomField2" style="display:none;margin-top:10px">
+        <label style="font-size:12px;color:var(--text2);margin-bottom:5px;display:block">Especifica el tipo de seguro</label>
+        <input type="text" id="gtCustomVal2" placeholder="Ej: Seguro de vida, seguro de negocio..."/>
+      </div>
+    </div>
+    <div class="form-group"><label>Edad del cliente</label><input type="number" id="rage" placeholder="Ej: 35" min="18" max="80"/></div>
+    <div class="form-group full"><label>Notas / situación del cliente</label><textarea id="rnotes" placeholder="Condiciones de salud, detalles, urgencia..."></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modalNuevoRef')">Cancelar</button>
+    <button class="btn btn-primary" id="submitRefBtn" onclick="submitReferral()">Enviar referido</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Update Status (Intl) -->
+<div class="modal-bg" id="modalStatus">
+<div class="modal">
+  <div class="modal-title">✎ Actualizar referido <button class="close-btn" onclick="closeModal('modalStatus')">✕</button></div>
+  <div id="statusRefInfo" style="background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+  <div class="form-group" style="margin-bottom:14px">
+    <label>Nuevo estado</label>
+    <select id="selStatus" onchange="togglePrimaField()">
+      <option value="quoted">Cotizado</option>
+      <option value="waiting">A la espera del cliente</option>
+      <option value="sold">Vendido ✓</option>
+      <option value="nope">No procede</option>
+    </select>
+  </div>
+  <div class="form-grid" id="primaFields" style="display:none;margin-bottom:14px">
+    <div class="form-group"><label>Prima total ($)</label><input type="number" id="primaVal" placeholder="Ej: 2400" oninput="calcComm()"/></div>
+    <div class="form-group"><label>Comisión generada ($)</label><input type="number" id="commVal" placeholder="Ej: 480" oninput="calcComm()"/></div>
+    <div class="form-group full" id="commResult" style="display:none">
+      <div style="background:var(--green-bg);border:1px solid rgba(61,220,132,.2);border-radius:9px;padding:14px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">COMISIONES</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div><div style="font-size:20px;font-weight:600;color:var(--green)" id="agentCommDisplay">$0</div><div style="font-size:11px;color:var(--text3)" id="agentCommLabel">Agente (20%)</div></div>
+          <div id="leaderCommBlock"><div style="font-size:20px;font-weight:600;color:var(--teal)" id="leaderCommDisplay">$0</div><div style="font-size:11px;color:var(--text3)">Líder (10%)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="form-group" style="margin-bottom:6px"><label>Notas internas</label><textarea id="statusNotes" placeholder="Próximos pasos, observaciones..."></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modalStatus')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveStatus()">Guardar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Update Status (GT) -->
+<div class="modal-bg" id="modalGTStatus">
+<div class="modal">
+  <div class="modal-title"><span style="color:var(--gt-gold2)">🏅</span> Actualizar — GoldenTrust <button class="close-btn" onclick="closeModal('modalGTStatus')">✕</button></div>
+  <div id="gtStatusRefInfo" style="background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+  <div class="form-group" style="margin-bottom:14px">
+    <label>Nuevo estado</label>
+    <select id="gtSelStatus" onchange="toggleGTPrimaField()">
+      <option value="quoted">Cotizado</option>
+      <option value="waiting">A la espera del cliente</option>
+      <option value="sold">Vendido ✓</option>
+      <option value="nope">No procede</option>
+    </select>
+  </div>
+  <div id="gtPrimaFields" style="display:none;margin-bottom:14px">
+    <div id="gtAutoComm" style="display:none;background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.25);border-radius:9px;padding:14px;text-align:center;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">COMISIÓN FIJA AUTOS</div>
+      <div style="font-size:28px;font-weight:700;color:var(--gt-gold2)">$25</div>
+    </div>
+    <div id="gtCasaComm" style="display:none">
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="form-group"><label>Prima total ($)</label><input type="number" id="gtPrimaVal" placeholder="Ej: 3200" oninput="calcGTComm()"/></div>
+        <div class="form-group"><label>Comisión generada ($)</label><input type="number" id="gtCommVal" placeholder="Ej: 480" oninput="calcGTComm()"/></div>
+      </div>
+      <div id="gtCommResult" style="display:none;background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.2);border-radius:9px;padding:14px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">COMISIÓN CALCULADA</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gt-gold2)" id="gtAgentCommDisplay">$0</div>
+        <div style="font-size:11px;color:var(--text3)">Agente (20%)</div>
+      </div>
+    </div>
+  </div>
+  <div class="form-group"><label>Notas internas</label><textarea id="gtStatusNotes" placeholder="Detalles del proceso..."></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modalGTStatus')">Cancelar</button>
+    <button class="btn btn-sm" style="background:var(--gt-gold);color:#000;font-weight:600" onclick="saveGTStatus()">Guardar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Register Leader (CEO) -->
+<div class="modal-bg" id="modalRegisterLeader">
+<div class="modal">
+  <div class="modal-title">🏆 Registrar líder <button class="close-btn" onclick="closeModal('modalRegisterLeader')">✕</button></div>
+  <div style="background:var(--amber-bg);border:1px solid rgba(245,166,35,.2);border-radius:9px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--amber)">
+    El líder queda activo inmediatamente y podrá registrar sus agentes.
+  </div>
+  <div class="form-grid" style="margin-bottom:14px">
+    <div class="form-group"><label>Nombre completo</label><input type="text" id="nl-name" placeholder="Nombre del líder"/></div>
+    <div class="form-group"><label>Teléfono</label><input type="tel" id="nl-phone" placeholder="+1 407..."/></div>
+    <div class="form-group"><label>Usuario de acceso</label><input type="text" id="nl-username" placeholder="carlos.rivera" autocapitalize="none"/></div>
+    <div class="form-group"><label>Nombre de la agencia</label><input type="text" id="nl-agency" placeholder="Next Level Tampa"/></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="nl-pass" placeholder="Mínimo 8 caracteres"/></div>
+    <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="nl-pass2" placeholder="Repite la clave"/></div>
+  </div>
+  <div id="nlCodePreview" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:14px;margin-bottom:14px;text-align:center">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px">CÓDIGO GENERADO</div>
+    <div id="nlCodeValue" style="font-size:22px;font-weight:700;color:var(--amber);font-family:var(--mono);letter-spacing:2px"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modalRegisterLeader')">Cancelar</button>
+    <button class="btn btn-ghost" onclick="previewLeaderCode()">Ver código</button>
+    <button class="btn btn-primary" onclick="registerLeader()" style="background:var(--amber);color:#000">Crear líder</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Register Agent (Leader) -->
+<div class="modal-bg" id="modalNewAgent">
+<div class="modal">
+  <div class="modal-title">👤 Registrar agente <button class="close-btn" onclick="closeModal('modalNewAgent')">✕</button></div>
+  <div style="background:var(--purple-bg);border:1px solid rgba(124,106,247,.2);border-radius:9px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--purple2)">
+    El agente queda activo inmediatamente con código vinculado a tu agencia.
+  </div>
+  <div class="form-grid" style="margin-bottom:14px">
+    <div class="form-group"><label>Nombre completo</label><input type="text" id="na-name" placeholder="Nombre del agente"/></div>
+    <div class="form-group"><label>Teléfono</label><input type="tel" id="na-phone" placeholder="+1 407..."/></div>
+    <div class="form-group"><label>Usuario de acceso</label><input type="text" id="na-username" placeholder="pedro.campos" autocapitalize="none"/></div>
+    <div class="form-group"><label>Email (opcional)</label><input type="email" id="na-email" placeholder="agente@correo.com"/></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="na-pass" placeholder="Mínimo 8 caracteres"/></div>
+    <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="na-pass2" placeholder="Repite la clave"/></div>
+  </div>
+  <div id="naCodePreview" style="display:none;background:var(--bg3);border-radius:9px;padding:14px;margin-bottom:14px;text-align:center">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px">CÓDIGO DE AGENTE</div>
+    <div id="naCodeValue" style="font-size:22px;font-weight:700;color:var(--purple2);font-family:var(--mono);letter-spacing:2px"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modalNewAgent')">Cancelar</button>
+    <button class="btn btn-ghost" onclick="previewAgentCode()">Ver código</button>
+    <button class="btn btn-primary" onclick="registerAgent()">Crear agente</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
+
+<script>
+const SUPABASE_URL = 'https://tgknmnnpcxvxfrnyrecr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRna25tbm5wY3h2eGZybnlyZWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MjIyMDUsImV4cCI6MjA5NTM5ODIwNX0.JXBYnx5xl77aqEpFNq7lQI7PJOzvPjV0CGZrUkGZkf0';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ══════════════════════ STATE ══════════════════════ */
+let currentUser = null;
+let allUsers = [];
+let allAgencies = [];
+let referrals = [];
+let gtReferrals = [];
+let notifications = [];
+let selectedCountry = 've';
+let selectedProduct = 'auto';
+let selectedGTProd2 = 'auto';
+let currentRefId = null;
+let currentGTRefId = null;
+let activePeriod = 'all';
+let filterDateFrom = null;
+let filterDateTo = null;
+let _currentNavId = 'dashboard';
+let realtimeChannel = null;
+
+/* ══════════════════════ INIT ══════════════════════ */
+async function init(){
+  try {
+    // Load agencies
+    const {data:ag} = await sb.from('agencies').select('*');
+    allAgencies = ag||[];
+
+    // Load all users
+    const {data:us} = await sb.from('users').select('*');
+    allUsers = us||[];
+
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+  } catch(e){
+    document.getElementById('loadingScreen').innerHTML =
+      '<div style="color:var(--red);text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:12px">⚠</div><div>Error conectando a la base de datos</div><div style="font-size:12px;color:var(--text3);margin-top:8px">'+e.message+'</div></div>';
+  }
+}
+
+/* ══════════════════════ AUTH ══════════════════════ */
+async function doLogin(){
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  if(!user){showAuthError('Ingresa tu usuario');return;}
+  if(!pass){showAuthError('Ingresa tu contraseña');return;}
+
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = '<span class="spinner"></span> Verificando...';
+  btn.disabled = true;
+
+  try {
+    const {data,error} = await sb.from('users')
+      .select('*')
+      .eq('username', user)
+      .eq('is_active', true)
+      .single();
+
+    if(error||!data){showAuthError('Usuario no encontrado');btn.innerHTML='Entrar';btn.disabled=false;return;}
+
+    // Verify password (stored as plain text for now — will hash in production)
+    const {data:pwData} = await sb.from('user_passwords')
+      .select('password_hash')
+      .eq('user_id', data.id)
+      .single();
+
+    if(pwData && pwData.password_hash !== pass){
+      showAuthError('Contraseña incorrecta');btn.innerHTML='Entrar';btn.disabled=false;return;
+    }
+
+    currentUser = data;
+    await loadUserData();
+    buildShell();
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appShell').classList.remove('hidden');
+    setupRealtime();
+  } catch(e){
+    showAuthError('Error de conexión');
+    btn.innerHTML='Entrar';btn.disabled=false;
+  }
+}
+
+function showAuthError(msg){
+  const el=document.getElementById('authError');
+  el.textContent='⚠ '+msg;
+  el.style.display='block';
+  setTimeout(()=>{el.style.display='none';},3000);
+}
+
+async function loadUserData(){
+  // Load referrals based on role
+  const role = currentUser.role;
+  if(role==='agente'){
+    const {data} = await sb.from('referrals').select('*, referral_notes(*)').eq('agent_id',currentUser.id).order('created_at',{ascending:false});
+    referrals = data||[];
+    const {data:gt} = await sb.from('gt_referrals').select('*, referral_notes(*)').eq('agent_id',currentUser.id).order('created_at',{ascending:false});
+    gtReferrals = gt||[];
+  } else if(role==='lider'){
+    const {data} = await sb.from('referrals').select('*, referral_notes(*)').eq('leader_id',currentUser.id).order('created_at',{ascending:false});
+    referrals = data||[];
+    const {data:gt} = await sb.from('gt_referrals').select('*, referral_notes(*)').eq('leader_id',currentUser.id).order('created_at',{ascending:false});
+    gtReferrals = gt||[];
+  } else if(role==='procesador'){
+    const {data} = await sb.from('referrals').select('*, referral_notes(*)').order('created_at',{ascending:false});
+    referrals = data||[];
+  } else if(role==='proc-gt'){
+    const {data} = await sb.from('gt_referrals').select('*, referral_notes(*)').order('created_at',{ascending:false});
+    gtReferrals = data||[];
+  } else if(role==='ceo'){
+    const {data} = await sb.from('referrals').select('*, referral_notes(*)').order('created_at',{ascending:false});
+    referrals = data||[];
+    const {data:gt} = await sb.from('gt_referrals').select('*, referral_notes(*)').order('created_at',{ascending:false});
+    gtReferrals = gt||[];
+    const {data:us} = await sb.from('users').select('*');
+    allUsers = us||[];
+  }
+  // Load notifications for this user
+  const {data:notifs} = await sb.from('notifications').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(50);
+  notifications = notifs||[];
+  updateNotifBadge();
+}
+
+/* ══════════════════════ REALTIME ══════════════════════ */
+function setupRealtime(){
+  if(realtimeChannel) sb.removeChannel(realtimeChannel);
+  realtimeChannel = sb.channel('referrals-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'referrals'},handleRealtimeChange)
+    .on('postgres_changes',{event:'*',schema:'public',table:'gt_referrals'},handleRealtimeGTChange)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${currentUser.id}`},handleNewNotif)
+    .subscribe();
+}
+
+function handleRealtimeChange(payload){
+  if(payload.eventType==='INSERT') referrals.unshift(payload.new);
+  else if(payload.eventType==='UPDATE') referrals=referrals.map(r=>r.id===payload.new.id?{...r,...payload.new}:r);
+  else if(payload.eventType==='DELETE') referrals=referrals.filter(r=>r.id!==payload.old.id);
+  if(_currentNavId==='dashboard'||_currentNavId==='queue'||_currentNavId==='my-referrals') refreshCurrentView();
+}
+
+function handleRealtimeGTChange(payload){
+  if(payload.eventType==='INSERT') gtReferrals.unshift(payload.new);
+  else if(payload.eventType==='UPDATE') gtReferrals=gtReferrals.map(r=>r.id===payload.new.id?{...r,...payload.new}:r);
+  else if(payload.eventType==='DELETE') gtReferrals=gtReferrals.filter(r=>r.id!==payload.old.id);
+  if(_currentNavId==='gt-queue'||_currentNavId==='gt-my-referrals') refreshCurrentView();
+}
+
+function handleNewNotif(payload){
+  notifications.unshift(payload.new);
+  updateNotifBadge();
+  showToast(payload.new.title,'🔔');
+}
+
+/* ══════════════════════ LOGOUT ══════════════════════ */
+function doLogout(){
+  if(realtimeChannel) sb.removeChannel(realtimeChannel);
+  currentUser=null; referrals=[]; gtReferrals=[]; notifications=[];
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+}
+
+/* ══════════════════════ SHELL ══════════════════════ */
+const NAV = {
+  ceo:[
+    {id:'dashboard',icon:'⊞',label:'Dashboard'},
+    {id:'referrals-all',icon:'≡',label:'Todos los referidos'},
+    {id:'gt-all',icon:'🏅',label:'GoldenTrust',gt:true},
+    {id:'agencies',icon:'⌂',label:'Agencias y líderes'},
+    {id:'agents',icon:'◎',label:'Todos los agentes'},
+    {id:'register-leader',icon:'＋',label:'Registrar líder'},
+    {id:'reports',icon:'▨',label:'Reportes'},
+    {id:'pay-commissions',icon:'$',label:'Pagar comisiones'},
+  ],
+  lider:[
+    {id:'dashboard',icon:'⊞',label:'Dashboard'},
+    {id:'my-referrals',icon:'→',label:'Refs. Internacional'},
+    {id:'gt-my-referrals',icon:'🏅',label:'Refs. GoldenTrust',gt:true},
+    {id:'team-referrals',icon:'≡',label:'Equipo Intl.'},
+    {id:'gt-team-referrals',icon:'🏅',label:'Equipo GT',gt:true},
+    {id:'my-agents',icon:'◎',label:'Mis agentes'},
+    {id:'commissions',icon:'$',label:'Comisiones'},
+  ],
+  agente:[
+    {id:'dashboard',icon:'⊞',label:'Dashboard'},
+    {id:'my-referrals',icon:'→',label:'Refs. Internacional'},
+    {id:'gt-my-referrals',icon:'🏅',label:'Refs. GoldenTrust',gt:true},
+    {id:'commissions',icon:'$',label:'Mis comisiones'},
+  ],
+  procesador:[
+    {id:'queue',icon:'⬇',label:'Cola nuevos',badge:true},
+    {id:'in-progress',icon:'◷',label:'En proceso'},
+    {id:'closed',icon:'✓',label:'Cerrados'},
+  ],
+  'proc-gt':[
+    {id:'gt-queue',icon:'⬇',label:'Cola GoldenTrust',badge:true},
+    {id:'gt-progress',icon:'◷',label:'En proceso'},
+    {id:'gt-closed',icon:'✓',label:'Cerrados'},
+  ],
+};
+
+function buildShell(){
+  const role = currentUser.role;
+  const items = NAV[role]||[];
+  const newIntl = referrals.filter(r=>r.status==='new').length;
+  const newGT = gtReferrals.filter(r=>r.status==='new').length;
+  const agency = allAgencies.find(a=>a.id===currentUser.agency_id);
+
+  document.getElementById('sideNav').innerHTML = items.map(it=>{
+    const isGT=it.gt;
+    const cnt=it.badge?(isGT?newGT:newIntl):0;
+    return `<button class="nav-item${isGT?' gt-item':''}" onclick="navigate('${it.id}')">
+      <span style="font-size:14px;width:18px;text-align:center">${it.icon}</span>
+      <span>${it.label}</span>
+      ${cnt>0?`<span class="nav-badge">${cnt}</span>`:''}
+    </button>`;
+  }).join('');
+
+  const roleLabels={ceo:'CEO',lider:'Líder de agencia',agente:'Agente',procesador:'Procesador Internacional','proc-gt':'Equipo GoldenTrust'};
+  document.getElementById('roleChip').innerHTML =
+    `<div class="role-chip-label">ROL ACTIVO</div>
+     <div class="role-chip-name">${currentUser.full_name}</div>
+     <div class="role-chip-sub">${roleLabels[role]||role}</div>
+     ${currentUser.agent_code?`<div style="font-size:10px;color:var(--purple2);margin-top:3px;font-family:var(--mono)">${currentUser.agent_code}</div>`:''}
+     ${agency?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${agency.name}</div>`:''}
+     <button onclick="doLogout()" style="margin-top:10px;width:100%;padding:7px;background:rgba(240,84,92,0.1);border:1px solid rgba(240,84,92,0.2);border-radius:7px;color:var(--red);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font)">⏻ Cerrar sesión</button>`;
+
+  const av=document.getElementById('userAvatar');
+  av.textContent=currentUser.full_name.split(' ').map(w=>w[0]).slice(0,2).join('');
+
+  if(role==='ceo') document.getElementById('topbarBadge').innerHTML=`<button class="btn btn-primary btn-sm" onclick="openModal('modalRegisterLeader')">+ Registrar líder</button>`;
+  if(role==='proc-gt') document.getElementById('topbarBadge').innerHTML=`<span class="gt-badge">🏅 GoldenTrust</span>`;
+
+  navigate(items[0]?.id||'dashboard');
+}
+
+/* ══════════════════════ NAVIGATE ══════════════════════ */
+const TITLES = {
+  dashboard:'Dashboard',queue:'Cola Internacional','in-progress':'En proceso',closed:'Cerrados',
+  'my-referrals':'Mis referidos — Intl.','team-referrals':'Equipo Internacional',
+  'new-referral':'Nuevo referido',commissions:'Comisiones',
+  'referrals-all':'Todos los referidos — Intl.',agencies:'Agencias y líderes',
+  agents:'Todos los agentes','register-leader':'Registrar líder',
+  reports:'Reportes','pay-commissions':'Pagar comisiones','my-agents':'Mis agentes',
+  'gt-queue':'Cola GoldenTrust','gt-progress':'En proceso — GT','gt-closed':'Cerrados — GT',
+  'gt-my-referrals':'Mis referidos — GoldenTrust','gt-team-referrals':'Equipo GoldenTrust','gt-all':'GoldenTrust — Todos',
+};
+
+function navigate(id){
+  _currentNavId=id;
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.remove('active');
+    if(n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
+  });
+  document.getElementById('pageTitle').textContent=TITLES[id]||id;
+  const mc=document.getElementById('mainContent');
+  mc.innerHTML='';mc.className='content fade-in';
+  switch(id){
+    case 'dashboard':        renderDashboard();break;
+    case 'queue':            renderQueue();break;
+    case 'in-progress':      renderByStatus(['quoted','waiting'],'En proceso');break;
+    case 'closed':           renderByStatus(['sold','nope'],'Cerrados');break;
+    case 'my-referrals':     renderMyReferrals();break;
+    case 'team-referrals':   renderTeamReferrals();break;
+    case 'commissions':      renderCommissions();break;
+    case 'referrals-all':    renderAllReferrals();break;
+    case 'agencies':         renderAgencies();break;
+    case 'agents':           renderAllAgents();break;
+    case 'register-leader':  openModal('modalRegisterLeader');renderDashboard();break;
+    case 'reports':          renderReports();break;
+    case 'pay-commissions':  renderPayCommissions();break;
+    case 'my-agents':        renderMyAgents();break;
+    case 'gt-queue':         renderGTQueue();break;
+    case 'gt-progress':      renderGTByStatus(['quoted','waiting'],'En proceso');break;
+    case 'gt-closed':        renderGTByStatus(['sold','nope'],'Cerrados');break;
+    case 'gt-my-referrals':  renderGTMyReferrals();break;
+    case 'gt-team-referrals':renderGTTeamReferrals();break;
+    case 'gt-all':           renderGTAll();break;
+    default: renderDashboard();
+  }
+}
+function refreshCurrentView(){navigate(_currentNavId);}
+
+/* ══════════════════════ DATE FILTER ══════════════════════ */
+function filterByPeriod(refs){
+  if(activePeriod==='all') return refs;
+  const today=new Date();today.setHours(23,59,59,999);
+  const parseDate=s=>s?new Date(s):null;
+  if(activePeriod==='7d'){const from=new Date();from.setDate(from.getDate()-6);from.setHours(0,0,0,0);return refs.filter(r=>{const d=parseDate(r.created_at);return d&&d>=from&&d<=today;});}
+  if(activePeriod==='30d'){const from=new Date();from.setDate(from.getDate()-29);from.setHours(0,0,0,0);return refs.filter(r=>{const d=parseDate(r.created_at);return d&&d>=from&&d<=today;});}
+  if(activePeriod==='day'&&filterDateFrom){const from=new Date(filterDateFrom);from.setHours(0,0,0,0);const to=new Date(filterDateFrom);to.setHours(23,59,59,999);return refs.filter(r=>{const d=parseDate(r.created_at);return d&&d>=from&&d<=to;});}
+  if(activePeriod==='range'&&filterDateFrom&&filterDateTo){const from=new Date(filterDateFrom);from.setHours(0,0,0,0);const to=new Date(filterDateTo);to.setHours(23,59,59,999);return refs.filter(r=>{const d=parseDate(r.created_at);return d&&d>=from&&d<=to;});}
+  return refs;
+}
+function periodLabel(){
+  if(activePeriod==='all')return'';
+  if(activePeriod==='7d')return'Últimos 7 días';
+  if(activePeriod==='30d')return'Últimos 30 días';
+  if(activePeriod==='day')return'Día: '+filterDateFrom;
+  if(activePeriod==='range')return filterDateFrom+' → '+filterDateTo;
+  return'';
+}
+function setPeriod(p){
+  activePeriod=p;
+  if(p!=='day'&&p!=='range'){filterDateFrom=null;filterDateTo=null;}
+  refreshCurrentView();
+}
+function applyRangeFilter(){const f=document.getElementById('df-from')?.value,t=document.getElementById('df-to')?.value;if(!f||!t){showToast('Selecciona rango de fechas','⚠️');return;}filterDateFrom=f;filterDateTo=t;activePeriod='range';refreshCurrentView();}
+function applyDayFilter(){const d=document.getElementById('df-day-val')?.value;if(!d){showToast('Selecciona un día','⚠️');return;}filterDateFrom=d;activePeriod='day';refreshCurrentView();}
+
+function dateFilterBar(){
+  const today=new Date().toISOString().split('T')[0];
+  return `<div class="date-filter-bar">
+    <span style="font-size:12px;color:var(--text3);font-weight:500;white-space:nowrap">📅 Período:</span>
+    <div class="df-pills">
+      <button class="df-pill${activePeriod==='all'?' active':''}" onclick="setPeriod('all')">Todo</button>
+      <button class="df-pill${activePeriod==='7d'?' active':''}" onclick="setPeriod('7d')">7 días</button>
+      <button class="df-pill${activePeriod==='30d'?' active':''}" onclick="setPeriod('30d')">30 días</button>
+    </div>
+    <div class="df-separator"></div>
+    <div class="df-pills">
+      <button class="df-pill${activePeriod==='day'?' active':''}" onclick="setPeriod('day')">Día específico</button>
+      <button class="df-pill${activePeriod==='range'?' active':''}" onclick="setPeriod('range')">Rango</button>
+    </div>
+    ${activePeriod==='day'?`<div style="display:flex;align-items:center;gap:8px"><input type="date" class="df-date-input" id="df-day-val" max="${today}"/><button class="df-apply" onclick="applyDayFilter()">Aplicar</button></div>`:''}
+    ${activePeriod==='range'?`<div style="display:flex;align-items:center;gap:8px"><input type="date" class="df-date-input" id="df-from" max="${today}"/><span style="color:var(--text3);font-size:12px">→</span><input type="date" class="df-date-input" id="df-to" max="${today}"/><button class="df-apply" onclick="applyRangeFilter()">Aplicar</button></div>`:''}
+    ${periodLabel()?`<span class="df-result-label">Mostrando: ${periodLabel()}</span>`:''}
+  </div>`;
+}
+
+/* ══════════════════════ DASHBOARDS ══════════════════════ */
+function renderDashboard(){
+  const r=currentUser.role;
+  if(r==='ceo') renderCEODash();
+  else if(r==='lider') renderLiderDash();
+  else if(r==='agente') renderAgenteDash();
+  else if(r==='procesador') renderProcDash();
+  else if(r==='proc-gt') renderGTProcDash();
+}
+
+function renderCEODash(){
+  const all=referrals; const gtAll=gtReferrals;
+  const sold=all.filter(r=>r.status==='sold');
+  const gtSold=gtAll.filter(r=>r.status==='sold');
+  const totalComm=sold.reduce((a,r)=>a+(r.agent_comm||0)+(r.leader_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  const leaders=allUsers.filter(u=>u.role==='lider').length;
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val">${all.length}</div><div class="metric-label">Refs. Internacionales</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--gt-gold2)">${gtAll.length}</div><div class="metric-label">Refs. GoldenTrust</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${totalComm}</div><div class="metric-label">Comisiones totales</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--purple2)">${leaders}</div><div class="metric-label">Líderes activos</div><div class="metric-sub"><button class="btn btn-ghost btn-sm" onclick="openModal('modalRegisterLeader')">+ Registrar</button></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+      <div class="card">
+        <div class="section-head"><div class="section-title">🌎 Actividad Internacional</div></div>
+        ${all.slice(0,5).map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:16px">${{ve:'🇻🇪',do:'🇩🇴',co:'🇨🇴'}[r.country]||'🌎'}</span>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500">${r.client_name}</div><div style="font-size:11px;color:var(--text3)">${formatDate(r.created_at)}</div></div>
+          ${statusBadge(r.status)}</div>`).join('')||'<div style="color:var(--text3);font-size:13px;padding:16px 0">Sin referidos aún</div>'}
+      </div>
+      <div class="card" style="border-color:rgba(212,160,23,.2)">
+        <div class="section-head"><div class="section-title" style="color:var(--gt-gold2)">🏅 Actividad GoldenTrust</div></div>
+        ${gtAll.slice(0,5).map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:16px">${{auto:'🚗',casa:'🏠',comercial:'🏢'}[r.gt_product]||'✏️'}</span>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500">${r.client_name}</div><div style="font-size:11px;color:var(--text3)">${formatDate(r.created_at)}</div></div>
+          ${statusBadge(r.status)}</div>`).join('')||'<div style="color:var(--text3);font-size:13px;padding:16px 0">Sin referidos GoldenTrust aún</div>'}
+      </div>
+    </div>`;
+}
+
+function renderLiderDash(){
+  const myRefs=referrals.filter(r=>r.agent_id===currentUser.id);
+  const teamRefs=referrals.filter(r=>r.leader_id===currentUser.id);
+  const myGT=gtReferrals.filter(r=>r.agent_id===currentUser.id);
+  const myComm=myRefs.filter(r=>r.status==='sold').reduce((a,r)=>a+(r.agent_comm||0),0)+myGT.filter(r=>r.status==='sold').reduce((a,r)=>a+(r.agent_comm||0),0);
+  const override=teamRefs.filter(r=>r.status==='sold').reduce((a,r)=>a+(r.leader_comm||0),0);
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val">${myRefs.length}</div><div class="metric-label">Mis refs. Intl.</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--gt-gold2)">${myGT.length}</div><div class="metric-label">Mis refs. GT</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">$${myComm}</div><div class="metric-label">Mis comisiones</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--teal)">$${override}</div><div class="metric-label">Override equipo (10%)</div></div>
+    </div>
+    <div class="card">
+      <div class="section-head"><div class="section-title">Nuevo referido</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card" style="cursor:pointer;border-color:rgba(124,106,247,.3)" onclick="openModal('modalNuevoRef')">
+          <div style="font-size:28px;margin-bottom:8px">🌎</div>
+          <div style="font-size:14px;font-weight:600;color:var(--purple2)">Internacional</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">VE · DO · CO</div>
+        </div>
+        <div class="card" style="cursor:pointer;border-color:rgba(212,160,23,.3)" onclick="openModal('modalNuevoRef');selCountry('us')">
+          <div style="font-size:28px;margin-bottom:8px">🏅</div>
+          <div style="font-size:14px;font-weight:600;color:var(--gt-gold2)">GoldenTrust</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">USA local</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAgenteDash(){
+  const myRefs=referrals.filter(r=>r.agent_id===currentUser.id);
+  const myGT=gtReferrals.filter(r=>r.agent_id===currentUser.id);
+  const sold=myRefs.filter(r=>r.status==='sold');
+  const gtSold=myGT.filter(r=>r.status==='sold');
+  const comm=sold.reduce((a,r)=>a+(r.agent_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val">${myRefs.length}</div><div class="metric-label">Refs. Intl.</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--gt-gold2)">${myGT.length}</div><div class="metric-label">Refs. GoldenTrust</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">${sold.length+gtSold.length}</div><div class="metric-label">Vendidos</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${comm}</div><div class="metric-label">Comisiones</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div class="card" style="cursor:pointer;border-color:rgba(124,106,247,.35);transition:.2s" onclick="openModal('modalNuevoRef')" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='rgba(124,106,247,.35)'">
+        <div style="font-size:30px;margin-bottom:8px">🌎</div>
+        <div style="font-size:14px;font-weight:600;color:var(--purple2)">Referido Internacional</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">🇻🇪 Venezuela · 🇩🇴 R. Dominicana · 🇨🇴 Colombia</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3)">Comisión <span style="color:var(--purple2);font-weight:600">20%</span></div>
+      </div>
+      <div class="card" style="cursor:pointer;border-color:rgba(212,160,23,.35);transition:.2s" onclick="openModal('modalNuevoRef');selCountry('us')" onmouseover="this.style.borderColor='var(--gt-gold)'" onmouseout="this.style.borderColor='rgba(212,160,23,.35)'">
+        <div style="font-size:30px;margin-bottom:8px">🏅</div>
+        <div style="font-size:14px;font-weight:600;color:var(--gt-gold2)">Referido GoldenTrust</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">🇺🇸 Autos · Casas · Comerciales</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3)">Autos <span style="color:var(--gt-gold2);font-weight:600">$25</span> · Resto <span style="color:var(--gt-gold2);font-weight:600">20%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-head"><div class="section-title">Mis últimos referidos</div></div>
+      ${myRefs.slice(0,5).map(r=>refCard(r,'agente')).join('')||'<div style="color:var(--text3);text-align:center;padding:24px">Sin referidos aún</div>'}
+    </div>`;
+}
+
+function renderProcDash(){
+  const all=filterByPeriod(referrals);
+  const newOnes=all.filter(r=>r.status==='new');
+  const inProg=all.filter(r=>['quoted','waiting'].includes(r.status));
+  const closed=all.filter(r=>r.status==='sold');
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">${newOnes.length}</div><div class="metric-label">Nuevos</div></div>
+      <div class="metric"><div class="metric-val">${inProg.length}</div><div class="metric-label">En proceso</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">${closed.length}</div><div class="metric-label">Cerrados</div></div>
+      <div class="metric"><div class="metric-val">${all.length}</div><div class="metric-label">Total</div></div>
+    </div>
+    <div class="card"><div class="section-title" style="margin-bottom:16px">Nuevos — requieren atención</div>
+    ${newOnes.length?newOnes.map(r=>refCard(r,'procesador')).join(''):'<div style="color:var(--text3);text-align:center;padding:24px">Sin referidos nuevos</div>'}</div>`;
+}
+
+function renderGTProcDash(){
+  const all=filterByPeriod(gtReferrals);
+  const newOnes=all.filter(r=>r.status==='new');
+  const inProg=all.filter(r=>['quoted','waiting'].includes(r.status));
+  const closed=all.filter(r=>r.status==='sold');
+  const totalComm=closed.reduce((a,r)=>a+(r.agent_comm||0),0);
+  document.getElementById('mainContent').innerHTML=`
+    <div class="gt-header-bar"><div><div class="gt-header-title">🏅 GoldenTrust — Seguros Locales USA</div><div style="font-size:11px;color:var(--text3)">Autos · Casas · Comerciales</div></div></div>
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric gt-metric"><div class="metric-val" style="color:var(--amber)">${newOnes.length}</div><div class="metric-label">Nuevos</div></div>
+      <div class="metric gt-metric"><div class="metric-val">${inProg.length}</div><div class="metric-label">En proceso</div></div>
+      <div class="metric gt-metric"><div class="metric-val" style="color:var(--green)">${closed.length}</div><div class="metric-label">Cerrados</div></div>
+      <div class="metric gt-metric"><div class="metric-val" style="color:var(--gt-gold2)">$${totalComm}</div><div class="metric-label">Comisiones</div></div>
+    </div>
+    <div class="card" style="border-color:rgba(212,160,23,.2)"><div class="section-title" style="margin-bottom:16px">Nuevos — requieren atención</div>
+    ${newOnes.length?newOnes.map(r=>gtRefCard(r,'proc-gt')).join(''):'<div style="color:var(--text3);text-align:center;padding:24px">Sin referidos nuevos</div>'}</div>`;
+}
+
+/* ══════════════════════ QUEUES & LISTS ══════════════════════ */
+function renderQueue(){
+  const refs=filterByPeriod(referrals.filter(r=>r.status==='new'));
+  document.getElementById('mainContent').innerHTML=`${dateFilterBar()}<div class="card"><div class="section-head"><div class="section-title">Cola — ${refs.length} pendientes</div></div>${refs.map(r=>refCard(r,'procesador')).join('')||empty()}</div>`;
+}
+function renderByStatus(statuses,title){
+  const refs=filterByPeriod(referrals.filter(r=>statuses.includes(r.status)));
+  document.getElementById('mainContent').innerHTML=`${dateFilterBar()}<div class="card"><div class="section-head"><div class="section-title">${title} — ${refs.length}</div></div>${refs.map(r=>refCard(r,'procesador')).join('')||empty()}</div>`;
+}
+function renderMyReferrals(){
+  const refs=filterByPeriod(referrals.filter(r=>r.agent_id===currentUser.id));
+  document.getElementById('mainContent').innerHTML=`${dateFilterBar()}<div class="section-head" style="margin-bottom:16px"><div class="section-title">Mis referidos Intl. — ${refs.length}</div><button class="btn btn-primary btn-sm" onclick="openModal('modalNuevoRef')">+ Nuevo</button></div>${refs.map(r=>refCard(r,currentUser.role)).join('')||empty()}`;
+}
+function renderTeamReferrals(){
+  const refs=filterByPeriod(referrals.filter(r=>r.leader_id===currentUser.id&&r.agent_id!==currentUser.id));
+  document.getElementById('mainContent').innerHTML=`${dateFilterBar()}<div class="card"><div class="section-head"><div class="section-title">Equipo Intl. — ${refs.length}</div></div>${refs.map(r=>refCard(r,'lider')).join('')||empty()}</div>`;
+}
+function renderAllReferrals(){
+  const refs=filterByPeriod(referrals);
+  document.getElementById('mainContent').innerHTML=`${dateFilterBar()}<div class="card"><div class="section-head"><div class="section-title">Todos Intl. — ${refs.length}</div></div>${renderTable(refs,true)}</div>`;
+}
+function renderGTQueue(){
+  const refs=filterByPeriod(gtReferrals.filter(r=>r.status==='new'));
+  document.getElementById('mainContent').innerHTML=`<div class="gt-header-bar"><div class="gt-header-title">🏅 GoldenTrust</div></div>${dateFilterBar()}<div class="card" style="border-color:rgba(212,160,23,.2)"><div class="section-head"><div class="section-title">Cola GT — ${refs.length}</div></div>${refs.map(r=>gtRefCard(r,'proc-gt')).join('')||empty()}</div>`;
+}
+function renderGTByStatus(statuses,title){
+  const refs=filterByPeriod(gtReferrals.filter(r=>statuses.includes(r.status)));
+  document.getElementById('mainContent').innerHTML=`<div class="gt-header-bar"><div class="gt-header-title">🏅 GoldenTrust</div></div>${dateFilterBar()}<div class="card" style="border-color:rgba(212,160,23,.2)"><div class="section-head"><div class="section-title">${title} — ${refs.length}</div></div>${refs.map(r=>gtRefCard(r,'proc-gt')).join('')||empty()}</div>`;
+}
+function renderGTMyReferrals(){
+  const refs=filterByPeriod(gtReferrals.filter(r=>r.agent_id===currentUser.id));
+  document.getElementById('mainContent').innerHTML=`<div class="gt-header-bar"><div class="gt-header-title">🏅 Mis refs. GoldenTrust</div></div>${dateFilterBar()}<div class="section-head" style="margin-bottom:16px"><div class="section-title">${refs.length} referidos</div><button class="btn btn-sm" style="background:var(--gt-gold);color:#000;font-weight:600" onclick="openModal('modalNuevoRef');selCountry('us')">+ Nuevo GT</button></div>${refs.map(r=>gtRefCard(r,currentUser.role)).join('')||empty()}`;
+}
+function renderGTTeamReferrals(){
+  const refs=filterByPeriod(gtReferrals.filter(r=>r.leader_id===currentUser.id&&r.agent_id!==currentUser.id));
+  document.getElementById('mainContent').innerHTML=`<div class="gt-header-bar"><div class="gt-header-title">🏅 Equipo GoldenTrust</div></div>${dateFilterBar()}<div class="card" style="border-color:rgba(212,160,23,.2)"><div class="section-head"><div class="section-title">${refs.length} referidos</div></div>${refs.map(r=>gtRefCard(r,'lider')).join('')||empty()}</div>`;
+}
+function renderGTAll(){
+  const refs=filterByPeriod(gtReferrals);
+  document.getElementById('mainContent').innerHTML=`<div class="gt-header-bar"><div class="gt-header-title">🏅 GoldenTrust — Todos</div></div>${dateFilterBar()}<div class="card" style="border-color:rgba(212,160,23,.2)"><div class="section-head"><div class="section-title">${refs.length} referidos</div></div>${refs.map(r=>gtRefCard(r,'ceo')).join('')||empty()}</div>`;
+}
+function empty(msg){return `<div style="color:var(--text3);text-align:center;padding:32px">${msg||'Sin resultados en este período'}</div>`;}
+
+/* ══════════════════════ REF CARDS ══════════════════════ */
+const FLAGS={ve:'🇻🇪',do:'🇩🇴',co:'🇨🇴'};
+const COUNTRY_NAMES={ve:'Venezuela',do:'R. Dominicana',co:'Colombia'};
+const GT_ICONS={auto:'🚗',casa:'🏠',comercial:'🏢',personalizado:'✏️'};
+const GT_LABELS={auto:'Seguro de autos',casa:'Seguro de casa',comercial:'Seguro comercial',personalizado:'Personalizado'};
+
+function formatDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});}
+
+function elapsedChip(r){
+  const ms=Date.now()-new Date(r.status_changed_at||r.created_at).getTime();
+  const h=Math.floor(ms/3600000),d=Math.floor(ms/86400000);
+  const label=d>0?d+'d':(h>0?h+'h':Math.floor(ms/60000)+'m');
+  const cls=d<=1?'fresh':d<=4?'medium':'slow';
+  const sLabel={new:'Sin atención',quoted:'En cotización',waiting:'Esperando',sold:'Cerrado',nope:'No procedió'}[r.status]||r.status;
+  return `<span class="time-chip ${cls}">⏱ ${label} en ${sLabel}</span>`;
+}
+
+function agentContactCard(r){
+  const agent=allUsers.find(u=>u.id===r.agent_id)||{full_name:r.agent_name||'—',phone:'—'};
+  const initials=(agent.full_name||'?').split(' ').map(w=>w[0]).slice(0,2).join('');
+  return `<div class="agent-contact">
+    <div class="agent-avatar">${initials}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:600">${agent.full_name}</div>
+      <div style="font-size:11px;color:var(--text3)">${agent.phone||'—'}</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="showToast('📱 ${agent.phone||'Sin teléfono'}','📱')">📱</button>
+  </div>`;
+}
+
+function notesFeed(r,isGT){
+  const notes=(r.referral_notes||[]);
+  const borderColor=isGT?'var(--gt-gold)':'var(--purple)';
+  const authorColor=isGT?'var(--gt-gold2)':'var(--purple2)';
+  const addFn=isGT?`addGTNote('${r.id}')`:`addNote('${r.id}')`;
+  return `<div class="notes-feed">
+    <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${isGT?'Notas GoldenTrust':'Notas del equipo'} (${notes.length})</div>
+    ${notes.map(n=>`<div class="note-item" style="border-left-color:${borderColor}">
+      <div class="note-item-header"><span class="note-author" style="color:${authorColor}">✍ ${n.author_name}</span><span class="note-time">${formatDate(n.created_at)}</span></div>
+      <div class="note-text">${n.note_text}</div></div>`).join('')}
+    <div class="add-note-row">
+      <input type="text" id="noteInput-${r.id}" placeholder="Agregar nota interna..."/>
+      <button class="btn btn-sm" style="${isGT?'background:var(--gt-gold);color:#000':'background:var(--purple);color:#fff'}" onclick="${addFn}">+ Nota</button>
+    </div>
+  </div>`;
+}
+
+function refCard(r,viewerRole){
+  const canEdit=viewerRole==='procesador';
+  const isOwner=viewerRole==='agente'||viewerRole==='lider';
+  const showAgent=viewerRole==='procesador'||viewerRole==='ceo'||viewerRole==='lider';
+  const showElapsed=canEdit&&!['sold','nope'].includes(r.status);
+  return `<div class="ref-card${r.status==='new'?' new-pulse':''}">
+    <div class="ref-header">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="ref-title">${r.client_name}</div>
+          ${showElapsed?elapsedChip(r):''}
+        </div>
+        <div class="ref-meta">
+          <span>${FLAGS[r.country]||'🌎'} ${COUNTRY_NAMES[r.country]||r.country}</span>
+          <span>·</span><span>${r.product}</span>
+          ${showAgent?`<span>·</span><span>${allUsers.find(u=>u.id===r.agent_id)?.full_name||'—'}</span>`:''}
+          <span>·</span><span>${formatDate(r.created_at)}</span>
+        </div>
+        ${r.notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">"${r.notes}"</div>`:''}
+      </div>
+      ${statusBadge(r.status)}
+    </div>
+    ${r.status==='sold'?`<div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+      <div style="font-size:12px;color:var(--text3)">Prima: <span style="color:var(--text);font-weight:500">$${(r.prima||0).toLocaleString()}</span></div>
+      <div style="font-size:12px;color:var(--text3)">Com.: <span style="color:var(--text);font-weight:500">$${(r.comm_generated||0).toLocaleString()}</span></div>
+    </div>`:''}
+    ${canEdit?agentContactCard(r):''}
+    ${canEdit?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">${notesFeed(r,false)}</div>`:''}
+    ${isOwner&&(r.referral_notes||[]).length>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">${notesFeed(r,false)}</div>`:''}
+    <div class="ref-actions">
+      ${canEdit?`<button class="btn btn-ghost btn-sm" onclick="openStatusModal('${r.id}')">✎ Actualizar estado</button>`:''}
+      ${isOwner&&r.status==='sold'?`<div class="comm-chip">💰 $${r.agent_comm||0}</div>`:''}
+    </div>
+  </div>`;
+}
+
+function gtRefCard(r,viewerRole){
+  const canEdit=viewerRole==='proc-gt';
+  const isOwner=viewerRole==='agente'||viewerRole==='lider';
+  const showAgent=viewerRole==='proc-gt'||viewerRole==='ceo'||viewerRole==='lider';
+  const showElapsed=canEdit&&!['sold','nope'].includes(r.status);
+  const gtIcon=GT_ICONS[r.gt_product]||'✏️';
+  const gtLabel=GT_LABELS[r.gt_product]||r.gt_product;
+  return `<div class="gt-card${r.status==='new'?' new-pulse':''}">
+    <div class="ref-header">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="ref-title">${r.client_name}</div>
+          <span class="gt-prod-chip">${gtIcon} ${gtLabel}</span>
+          ${showElapsed?elapsedChip(r):''}
+        </div>
+        <div class="ref-meta">
+          <span>🇺🇸 USA</span>
+          ${showAgent?`<span>·</span><span>${allUsers.find(u=>u.id===r.agent_id)?.full_name||'—'}</span>`:''}
+          <span>·</span><span>${formatDate(r.created_at)}</span>
+        </div>
+        ${r.notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">"${r.notes}"</div>`:''}
+      </div>
+      ${statusBadge(r.status)}
+    </div>
+    ${r.status==='sold'?`<div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+      ${r.gt_product!=='auto'?`<div style="font-size:12px;color:var(--text3)">Prima: <span style="font-weight:500">$${(r.prima||0).toLocaleString()}</span></div>`:''}
+      <div style="font-size:12px;color:var(--text3)">Com. agente: <span style="color:var(--gt-gold2);font-weight:600">$${r.agent_comm||0}</span></div>
+    </div>`:''}
+    ${canEdit?agentContactCard(r):''}
+    ${canEdit?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">${notesFeed(r,true)}</div>`:''}
+    ${isOwner&&(r.referral_notes||[]).length>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">${notesFeed(r,true)}</div>`:''}
+    <div class="ref-actions">
+      ${canEdit?`<button class="btn btn-sm" style="background:var(--gt-gold);color:#000;font-weight:600" onclick="openGTStatusModal('${r.id}')">✎ Actualizar estado</button>`:''}
+      ${isOwner&&r.status==='sold'?`<div class="gt-comm-chip">💰 ${r.gt_product==='auto'?'$25 fijo':'$'+(r.agent_comm||0)}</div>`:''}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════ STATUS BADGE ══════════════════════ */
+function statusBadge(s){
+  const m={new:['badge-new','● Nuevo'],quoted:['badge-quoted','◎ Cotizado'],waiting:['badge-waiting','◷ A la espera'],sold:['badge-sold','✓ Vendido'],nope:['badge-nope','✗ No procede']};
+  const [cls,lbl]=m[s]||['',''];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+/* ══════════════════════ SUBMIT REFERRALS ══════════════════════ */
+function selCountry(c){
+  selectedCountry=c;
+  ['ve','do','co','us'].forEach(x=>{
+    const b=document.getElementById('cbtn-'+x);
+    if(b){b.classList.remove('sel','sel-gt');if(x===c)b.classList.add(c==='us'?'sel-gt':'sel');}
+  });
+  const hints={ve:'+58 412...',do:'+1 809...',co:'+57 310...',us:'+1 407...'};
+  const ph=document.getElementById('rph');if(ph)ph.placeholder=hints[c]||'+1';
+  const isUS=c==='us';
+  const ip=document.getElementById('intlProducts'),gp=document.getElementById('gtProducts'),banner=document.getElementById('gtBanner'),btn=document.getElementById('submitRefBtn'),title=document.getElementById('modalRefTitle');
+  if(ip)ip.style.display=isUS?'none':'block';
+  if(gp)gp.style.display=isUS?'block':'none';
+  if(banner)banner.style.display=isUS?'flex':'none';
+  if(btn){btn.style.background=isUS?'var(--gt-gold)':'';btn.style.color=isUS?'#000':'';}
+  if(title)title.textContent=isUS?'Nuevo referido — GoldenTrust':'Nuevo referido';
+}
+
+function selectProduct(p){
+  selectedProduct=p;
+  ['auto','salud','comercial2','personalizado'].forEach(x=>{const b=document.getElementById('pbtn-'+x);if(b)b.classList.toggle('sel',x===p);});
+  const cf=document.getElementById('customProductField');
+  if(cf)cf.style.display=p==='personalizado'?'block':'none';
+}
+const PROD_LABELS={auto:'Seguro de autos',salud:'Seguro de salud',comercial2:'Seguros comerciales'};
+function getSelectedProduct(){
+  if(selectedProduct==='personalizado')return document.getElementById('rprod-custom')?.value.trim()||'';
+  return PROD_LABELS[selectedProduct]||selectedProduct;
+}
+
+function selectGTProd2(p){
+  selectedGTProd2=p;
+  ['auto','casa','comercial','personalizado'].forEach(x=>{const b=document.getElementById('gtpbtn2-'+x);if(b){b.classList.toggle('sel',x===p);b.style.borderColor=x===p?'rgba(212,160,23,.5)':'';} });
+  const cf=document.getElementById('gtCustomField2');if(cf)cf.style.display=p==='personalizado'?'block':'none';
+}
+
+async function submitReferral(){
+  const name=document.getElementById('rn').value.trim();
+  if(!name){showToast('Nombre del cliente requerido','⚠️');return;}
+  const isUS=selectedCountry==='us';
+  const dateStr=new Date().toISOString();
+  const base={
+    client_name:name,
+    client_phone:document.getElementById('rph').value||null,
+    client_email:document.getElementById('rem').value||null,
+    client_age:parseInt(document.getElementById('rage').value)||null,
+    notes:document.getElementById('rnotes').value||null,
+    status:'new',
+    agent_id:currentUser.id,
+    agency_id:currentUser.agency_id,
+    status_changed_at:dateStr,
+  };
+  // Find leader
+  const myLeader=allUsers.find(u=>u.id===currentUser.leader_id);
+  if(myLeader)base.leader_id=myLeader.id;
+
+  const btn=document.getElementById('submitRefBtn');
+  btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
+  try{
+    if(isUS){
+      const gtProd=selectedGTProd2==='personalizado'?(document.getElementById('gtCustomVal2')?.value.trim()||'Personalizado'):selectedGTProd2;
+      if(selectedGTProd2==='personalizado'&&!document.getElementById('gtCustomVal2')?.value.trim()){showToast('Especifica el tipo de seguro','⚠️');btn.innerHTML='Enviar referido';btn.disabled=false;return;}
+      const {data,error}=await sb.from('gt_referrals').insert({...base,gt_product:gtProd}).select().single();
+      if(error)throw error;
+      gtReferrals.unshift(data);
+      showToast('Referido enviado a GoldenTrust 🏅','✅');
+    } else {
+      const product=getSelectedProduct();
+      if(selectedProduct==='personalizado'&&!product){showToast('Especifica el tipo de seguro','⚠️');btn.innerHTML='Enviar referido';btn.disabled=false;return;}
+      const {data,error}=await sb.from('referrals').insert({...base,country:selectedCountry,product:product||'Seguro de salud'}).select().single();
+      if(error)throw error;
+      referrals.unshift(data);
+      showToast('Referido enviado al equipo Internacional ✅','🌎');
+    }
+    closeModal('modalNuevoRef');
+    resetRefForm();
+    navigate('my-referrals');
+  }catch(e){showToast('Error al enviar: '+e.message,'❌');}
+  btn.innerHTML='Enviar referido';btn.disabled=false;
+}
+
+function resetRefForm(){
+  ['rn','rph','rem','rnotes','rage','rprod-custom','gtCustomVal2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  selectedProduct='auto';selectProduct('auto');
+  selectedGTProd2='auto';selectGTProd2('auto');
+  selCountry('ve');
+  const cf=document.getElementById('customProductField');if(cf)cf.style.display='none';
+  const gcf=document.getElementById('gtCustomField2');if(gcf)gcf.style.display='none';
+}
+
+/* ══════════════════════ STATUS UPDATES ══════════════════════ */
+function openStatusModal(id){
+  currentRefId=id;
+  const r=referrals.find(x=>x.id===id);
+  if(!r)return;
+  const agent=allUsers.find(u=>u.id===r.agent_id);
+  document.getElementById('statusRefInfo').innerHTML=
+    `<div style="font-weight:600;font-size:14px">${r.client_name}</div>`+
+    `<div style="font-size:11px;color:var(--text3);margin-top:4px">${r.product} · ${COUNTRY_NAMES[r.country]||r.country}</div>`+
+    (agent?`<div style="font-size:11px;color:var(--text3);margin-top:2px">Agente: ${agent.full_name} · ${agent.phone||'—'}</div>`:'');
+  const isLeaderRef=r.agent_id===currentUser.id&&currentUser.role==='lider';
+  document.getElementById('agentCommLabel').textContent=isLeaderRef?'Líder (30%)':'Agente (20%)';
+  document.getElementById('leaderCommBlock').style.display=isLeaderRef?'none':'block';
+  document.getElementById('selStatus').value='quoted';
+  document.getElementById('primaFields').style.display='none';
+  document.getElementById('commResult').style.display='none';
+  document.getElementById('statusNotes').value='';
+  ['primaVal','commVal'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  openModal('modalStatus');
+}
+
+function togglePrimaField(){
+  const v=document.getElementById('selStatus').value;
+  document.getElementById('primaFields').style.display=v==='sold'?'grid':'none';
+  if(v!=='sold')document.getElementById('commResult').style.display='none';
+}
+function calcComm(){
+  const comm=parseFloat(document.getElementById('commVal').value)||0;
+  if(comm>0){
+    const r=referrals.find(x=>x.id===currentRefId);
+    const isLeader=r&&r.agent_id===currentUser.id&&currentUser.role==='lider';
+    document.getElementById('agentCommDisplay').textContent='$'+Math.round(comm*(isLeader?0.30:0.20));
+    document.getElementById('leaderCommDisplay').textContent='$'+Math.round(comm*0.10);
+    document.getElementById('commResult').style.display='block';
+  }
+}
+
+async function saveStatus(){
+  const r=referrals.find(x=>x.id===currentRefId);
+  if(!r)return;
+  const newStatus=document.getElementById('selStatus').value;
+  const notes=document.getElementById('statusNotes').value.trim();
+  const statusLabels={quoted:'Cotizado',waiting:'A la espera',sold:'Vendido',nope:'No procede'};
+  const isLeader=r.agent_id===currentUser.id&&currentUser.role==='lider';
+
+  const updates={status:newStatus,status_changed_at:new Date().toISOString()};
+  if(newStatus==='sold'){
+    updates.prima=parseFloat(document.getElementById('primaVal').value)||0;
+    updates.comm_generated=parseFloat(document.getElementById('commVal').value)||0;
+    updates.agent_comm=Math.round(updates.comm_generated*(isLeader?0.30:0.20));
+    updates.leader_comm=isLeader?0:Math.round(updates.comm_generated*0.10);
+  }
+
+  try{
+    const {error}=await sb.from('referrals').update(updates).eq('id',r.id);
+    if(error)throw error;
+    Object.assign(r,updates);
+    if(notes){
+      const {error:ne}=await sb.from('referral_notes').insert({referral_id:r.id,author_id:currentUser.id,author_name:currentUser.full_name,note_text:notes});
+      if(!ne)r.referral_notes=(r.referral_notes||[]).concat({author_name:currentUser.full_name,note_text:notes,created_at:new Date().toISOString()});
+    }
+    // Notify agent
+    const agent=allUsers.find(u=>u.id===r.agent_id);
+    if(agent&&agent.id!==currentUser.id){
+      await sb.from('notifications').insert({user_id:agent.id,title:statusLabels[newStatus]+' — '+r.client_name,body:notes||'Estado actualizado por el equipo procesador.',referral_id:r.id});
+    }
+    closeModal('modalStatus');
+    showToast('Estado actualizado · Agente notificado','✅');
+    refreshCurrentView();
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+
+/* GT Status */
+function openGTStatusModal(id){
+  currentGTRefId=id;
+  const r=gtReferrals.find(x=>x.id===id);
+  if(!r)return;
+  const agent=allUsers.find(u=>u.id===r.agent_id);
+  document.getElementById('gtStatusRefInfo').innerHTML=
+    `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:600;font-size:14px">${r.client_name}</div><span class="gt-prod-chip">${GT_ICONS[r.gt_product]||'✏️'} ${GT_LABELS[r.gt_product]||r.gt_product}</span></div>`+
+    (agent?`<div style="font-size:11px;color:var(--text3);margin-top:5px">Agente: ${agent.full_name} · ${agent.phone||'—'}</div>`:'');
+  document.getElementById('gtSelStatus').value='quoted';
+  document.getElementById('gtPrimaFields').style.display='none';
+  document.getElementById('gtAutoComm').style.display='none';
+  document.getElementById('gtCasaComm').style.display='none';
+  document.getElementById('gtCommResult').style.display='none';
+  document.getElementById('gtStatusNotes').value='';
+  ['gtPrimaVal','gtCommVal'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  openModal('modalGTStatus');
+}
+
+function toggleGTPrimaField(){
+  const v=document.getElementById('gtSelStatus').value;
+  const r=gtReferrals.find(x=>x.id===currentGTRefId);
+  const isAuto=r&&r.gt_product==='auto';
+  document.getElementById('gtPrimaFields').style.display=v==='sold'?'block':'none';
+  if(v==='sold'){
+    document.getElementById('gtAutoComm').style.display=isAuto?'block':'none';
+    document.getElementById('gtCasaComm').style.display=isAuto?'none':'block';
+  }
+}
+function calcGTComm(){
+  const comm=parseFloat(document.getElementById('gtCommVal')?.value)||0;
+  if(comm>0){document.getElementById('gtAgentCommDisplay').textContent='$'+Math.round(comm*0.20);document.getElementById('gtCommResult').style.display='block';}
+  else document.getElementById('gtCommResult').style.display='none';
+}
+
+async function saveGTStatus(){
+  const r=gtReferrals.find(x=>x.id===currentGTRefId);
+  if(!r)return;
+  const newStatus=document.getElementById('gtSelStatus').value;
+  const notes=document.getElementById('gtStatusNotes').value.trim();
+  const statusLabels={quoted:'Cotizado',waiting:'A la espera',sold:'Vendido',nope:'No procede'};
+  const isAuto=r.gt_product==='auto';
+
+  const updates={status:newStatus,status_changed_at:new Date().toISOString()};
+  if(newStatus==='sold'){
+    updates.prima=parseFloat(document.getElementById('gtPrimaVal')?.value)||0;
+    updates.comm_generated=isAuto?0:parseFloat(document.getElementById('gtCommVal')?.value)||0;
+    updates.agent_comm=isAuto?25:Math.round(updates.comm_generated*0.20);
+  }
+
+  try{
+    const {error}=await sb.from('gt_referrals').update(updates).eq('id',r.id);
+    if(error)throw error;
+    Object.assign(r,updates);
+    if(notes){
+      const {error:ne}=await sb.from('referral_notes').insert({gt_referral_id:r.id,author_id:currentUser.id,author_name:currentUser.full_name,note_text:notes});
+      if(!ne)r.referral_notes=(r.referral_notes||[]).concat({author_name:currentUser.full_name,note_text:notes,created_at:new Date().toISOString()});
+    }
+    const agent=allUsers.find(u=>u.id===r.agent_id);
+    if(agent&&agent.id!==currentUser.id){
+      await sb.from('notifications').insert({user_id:agent.id,title:'GoldenTrust: '+statusLabels[newStatus]+' — '+r.client_name,body:notes||'Estado actualizado por GoldenTrust.',referral_id:r.id});
+    }
+    closeModal('modalGTStatus');
+    showToast('Estado GT actualizado · Agente notificado','✅');
+    refreshCurrentView();
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+
+/* ══════════════════════ NOTES ══════════════════════ */
+async function addNote(refId){
+  const input=document.getElementById('noteInput-'+refId);
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text){showToast('Escribe una nota primero','⚠️');return;}
+  try{
+    const {data,error}=await sb.from('referral_notes').insert({referral_id:refId,author_id:currentUser.id,author_name:currentUser.full_name,note_text:text}).select().single();
+    if(error)throw error;
+    const r=referrals.find(x=>x.id===refId);
+    if(r)r.referral_notes=(r.referral_notes||[]).concat(data);
+    const agent=allUsers.find(u=>u.id===r?.agent_id);
+    if(agent&&agent.id!==currentUser.id) await sb.from('notifications').insert({user_id:agent.id,title:'Nota del equipo — '+r.client_name,body:text,referral_id:refId});
+    input.value='';
+    refreshCurrentView();
+    showToast('Nota guardada · Agente notificado','✅');
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+async function addGTNote(refId){
+  const input=document.getElementById('noteInput-'+refId);
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text){showToast('Escribe una nota primero','⚠️');return;}
+  try{
+    const {data,error}=await sb.from('referral_notes').insert({gt_referral_id:refId,author_id:currentUser.id,author_name:currentUser.full_name,note_text:text}).select().single();
+    if(error)throw error;
+    const r=gtReferrals.find(x=>x.id===refId);
+    if(r)r.referral_notes=(r.referral_notes||[]).concat(data);
+    const agent=allUsers.find(u=>u.id===r?.agent_id);
+    if(agent&&agent.id!==currentUser.id) await sb.from('notifications').insert({user_id:agent.id,title:'Nota GoldenTrust — '+r.client_name,body:text,referral_id:refId});
+    input.value='';
+    refreshCurrentView();
+    showToast('Nota guardada · Agente notificado','✅');
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+
+/* ══════════════════════ REGISTER USERS ══════════════════════ */
+function previewLeaderCode(){
+  const agency=document.getElementById('nl-agency')?.value.trim()||'NL';
+  const prefix=agency.toUpperCase().split(/\s+/).map(w=>w[0]).join('').slice(0,4)||'NL';
+  const existing=allUsers.filter(u=>u.role==='lider'&&u.agent_code?.startsWith(prefix)).length;
+  const code=prefix+'-L'+String(existing+1).padStart(2,'0');
+  document.getElementById('nlCodePreview').style.display='block';
+  document.getElementById('nlCodeValue').textContent=code;
+}
+function previewAgentCode(){
+  const agency=allAgencies.find(a=>a.id===currentUser.agency_id);
+  const prefix=agency?.prefix||'NL';
+  const existing=allUsers.filter(u=>u.role==='agente'&&u.agent_code?.startsWith(prefix)).length;
+  const code=prefix+'-'+String(existing+1).padStart(3,'0');
+  document.getElementById('naCodePreview').style.display='block';
+  document.getElementById('naCodeValue').textContent=code;
+}
+
+async function registerLeader(){
+  const name=document.getElementById('nl-name').value.trim();
+  const username=document.getElementById('nl-username').value.trim().toLowerCase();
+  const phone=document.getElementById('nl-phone').value.trim();
+  const agencyName=document.getElementById('nl-agency').value.trim();
+  const pass=document.getElementById('nl-pass').value;
+  const pass2=document.getElementById('nl-pass2').value;
+  if(!name||!username||!agencyName){showToast('Nombre, usuario y agencia requeridos','⚠️');return;}
+  if(pass!==pass2){showToast('Las contraseñas no coinciden','⚠️');return;}
+  if(pass.length<8){showToast('Contraseña mínimo 8 caracteres','⚠️');return;}
+  if(allUsers.find(u=>u.username===username)){showToast('Ese usuario ya existe','⚠️');return;}
+
+  // Get or create agency
+  let agency=allAgencies.find(a=>a.name===agencyName);
+  if(!agency){
+    const prefix=agencyName.toUpperCase().split(/\s+/).map(w=>w[0]).join('').slice(0,4)||'NL';
+    const {data:ag,error:ae}=await sb.from('agencies').insert({name:agencyName,prefix}).select().single();
+    if(ae){showToast('Error creando agencia','❌');return;}
+    agency=ag; allAgencies.push(ag);
+  }
+  const code=agency.prefix+'-L'+String(allUsers.filter(u=>u.role==='lider'&&u.agent_code?.startsWith(agency.prefix)).length+1).padStart(2,'0');
+
+  try{
+    const {data:u,error}=await sb.from('users').insert({username,full_name:name,phone,role:'lider',agency_id:agency.id,agent_code:code,created_by:currentUser.id}).select().single();
+    if(error)throw error;
+    await sb.from('user_passwords').insert({user_id:u.id,password_hash:pass});
+    allUsers.push(u);
+    closeModal('modalRegisterLeader');
+    ['nl-name','nl-username','nl-phone','nl-agency','nl-pass','nl-pass2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('nlCodePreview').style.display='none';
+    showToast('Líder registrado · Código: '+code,'✅');
+    refreshCurrentView();
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+
+async function registerAgent(){
+  const name=document.getElementById('na-name').value.trim();
+  const username=document.getElementById('na-username').value.trim().toLowerCase();
+  const phone=document.getElementById('na-phone').value.trim();
+  const email=document.getElementById('na-email').value.trim();
+  const pass=document.getElementById('na-pass').value;
+  const pass2=document.getElementById('na-pass2').value;
+  if(!name||!username){showToast('Nombre y usuario requeridos','⚠️');return;}
+  if(pass!==pass2){showToast('Las contraseñas no coinciden','⚠️');return;}
+  if(pass.length<8){showToast('Contraseña mínimo 8 caracteres','⚠️');return;}
+  if(allUsers.find(u=>u.username===username)){showToast('Ese usuario ya existe','⚠️');return;}
+
+  const agency=allAgencies.find(a=>a.id===currentUser.agency_id);
+  const prefix=agency?.prefix||'NL';
+  const code=prefix+'-'+String(allUsers.filter(u=>u.role==='agente'&&u.agent_code?.startsWith(prefix)).length+1).padStart(3,'0');
+
+  try{
+    const {data:u,error}=await sb.from('users').insert({username,full_name:name,phone,role:'agente',agency_id:currentUser.agency_id,leader_id:currentUser.id,agent_code:code,created_by:currentUser.id}).select().single();
+    if(error)throw error;
+    await sb.from('user_passwords').insert({user_id:u.id,password_hash:pass});
+    allUsers.push(u);
+    closeModal('modalNewAgent');
+    ['na-name','na-username','na-phone','na-email','na-pass','na-pass2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('naCodePreview').style.display='none';
+    showToast('Agente registrado · Código: '+code,'✅');
+    navigate('my-agents');
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
+
+/* ══════════════════════ OTHER VIEWS ══════════════════════ */
+function renderCommissions(){
+  const isLider=currentUser.role==='lider';
+  const myRefs=referrals.filter(r=>r.agent_id===currentUser.id&&r.status==='sold');
+  const myGT=gtReferrals.filter(r=>r.agent_id===currentUser.id&&r.status==='sold');
+  const overwrite=isLider?referrals.filter(r=>r.leader_id===currentUser.id&&r.agent_id!==currentUser.id&&r.status==='sold'):[];
+  const intlComm=myRefs.reduce((a,r)=>a+(r.agent_comm||0),0);
+  const gtComm=myGT.reduce((a,r)=>a+(r.agent_comm||0),0);
+  const ow=overwrite.reduce((a,r)=>a+(r.leader_comm||0),0);
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics" style="grid-template-columns:repeat(${isLider?'4':'3'},1fr)">
+      <div class="metric"><div class="metric-val" style="color:var(--purple2)">$${intlComm}</div><div class="metric-label">Comisiones Intl. (20%)</div></div>
+      <div class="metric gt-metric"><div class="metric-val" style="color:var(--gt-gold2)">$${gtComm}</div><div class="metric-label">Comisiones GT</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${intlComm+gtComm+(isLider?ow:0)}</div><div class="metric-label">Total acumulado</div></div>
+      ${isLider?`<div class="metric"><div class="metric-val" style="color:var(--teal)">$${ow}</div><div class="metric-label">Override equipo (10%)</div></div>`:''}
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-bottom:16px">Detalle — Internacional</div>
+      <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>País</th><th>Producto</th><th>Prima</th><th>Com. póliza</th><th>Mi comisión</th><th>Fecha</th></tr></thead><tbody>
+        ${myRefs.map(r=>`<tr><td><div class="td-name">${r.client_name}</div></td><td>${FLAGS[r.country]||''}</td><td>${r.product}</td><td>$${(r.prima||0).toLocaleString()}</td><td>$${(r.comm_generated||0).toLocaleString()}</td><td style="color:var(--green);font-weight:600">$${r.agent_comm||0}</td><td style="color:var(--text3)">${formatDate(r.created_at)}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3)">Sin ventas aún</td></tr>'}
+      </tbody></table></div>
+    </div>
+    ${myGT.length?`<div class="card" style="margin-top:16px;border-color:rgba(212,160,23,.2)">
+      <div class="section-title" style="margin-bottom:16px;color:var(--gt-gold2)">Detalle — GoldenTrust</div>
+      <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Producto</th><th>Prima</th><th>Mi comisión</th><th>Fecha</th></tr></thead><tbody>
+        ${myGT.map(r=>`<tr><td><div class="td-name">${r.client_name}</div></td><td><span class="gt-prod-chip">${GT_ICONS[r.gt_product]||'✏️'} ${GT_LABELS[r.gt_product]||r.gt_product}</span></td><td>${r.prima?'$'+r.prima.toLocaleString():'—'}</td><td style="color:var(--gt-gold2);font-weight:600">${r.gt_product==='auto'?'$25 fijo':'$'+(r.agent_comm||0)}</td><td style="color:var(--text3)">${formatDate(r.created_at)}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`:''}`;
+}
+
+function renderMyAgents(){
+  const myAgents=allUsers.filter(u=>u.role==='agente'&&u.leader_id===currentUser.id);
+  document.getElementById('mainContent').innerHTML=`
+    <div class="section-head" style="margin-bottom:20px">
+      <div class="section-title">Mis agentes (${myAgents.length})</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modalNewAgent')">+ Registrar agente</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Agente</th><th>Teléfono</th><th>Refs.</th><th>Vendidos</th><th>Overwrite</th></tr></thead><tbody>
+        ${myAgents.map(a=>{
+          const refs=referrals.filter(r=>r.agent_id===a.id).length;
+          const sold=referrals.filter(r=>r.agent_id===a.id&&r.status==='sold');
+          const ow=sold.reduce((x,r)=>x+(r.leader_comm||0),0);
+          return `<tr><td><span style="font-family:var(--mono);font-size:11px;color:var(--purple2);background:var(--purple-bg);padding:2px 8px;border-radius:5px">${a.agent_code||'—'}</span></td><td><div class="td-name">${a.full_name}</div></td><td style="color:var(--text3)">${a.phone||'—'}</td><td>${refs}</td><td>${sold.length}</td><td style="color:var(--teal);font-weight:600">${ow?'$'+ow:'—'}</td></tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">Sin agentes registrados aún</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+}
+
+function renderAgencies(){
+  const leaders=allUsers.filter(u=>u.role==='lider');
+  document.getElementById('mainContent').innerHTML=`
+    <div class="card">
+      <div class="section-head" style="margin-bottom:16px"><div class="section-title">Agencias y líderes</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Líder</th><th>Agencia</th><th>Teléfono</th><th>Agentes</th><th>Refs.</th></tr></thead><tbody>
+        ${leaders.map(l=>{
+          const ag=allAgencies.find(a=>a.id===l.agency_id);
+          const agents=allUsers.filter(u=>u.leader_id===l.id).length;
+          const refs=referrals.filter(r=>r.leader_id===l.id).length;
+          return `<tr><td><span style="font-family:var(--mono);font-size:11px;color:var(--amber);background:var(--amber-bg);padding:2px 8px;border-radius:5px">${l.agent_code||'—'}</span></td><td><div class="td-name">${l.full_name}</div></td><td>${ag?.name||'—'}</td><td style="color:var(--text3)">${l.phone||'—'}</td><td>${agents}</td><td>${refs}</td></tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">Sin líderes registrados</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+}
+
+function renderAllAgents(){
+  const agents=allUsers.filter(u=>u.role==='agente');
+  document.getElementById('mainContent').innerHTML=`
+    <div class="card">
+      <div class="section-head" style="margin-bottom:16px"><div class="section-title">Todos los agentes (${agents.length})</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Agente</th><th>Líder</th><th>Agencia</th><th>Refs.</th><th>Vendidos</th></tr></thead><tbody>
+        ${agents.map(a=>{
+          const leader=allUsers.find(u=>u.id===a.leader_id);
+          const ag=allAgencies.find(x=>x.id===a.agency_id);
+          const refs=referrals.filter(r=>r.agent_id===a.id).length;
+          const sold=referrals.filter(r=>r.agent_id===a.id&&r.status==='sold').length;
+          return `<tr><td><span style="font-family:var(--mono);font-size:11px;color:var(--purple2);background:var(--purple-bg);padding:2px 8px;border-radius:5px">${a.agent_code||'—'}</span></td><td><div class="td-name">${a.full_name}</div></td><td>${leader?.full_name||'—'}</td><td>${ag?.name||'—'}</td><td>${refs}</td><td>${sold}</td></tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">Sin agentes</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+}
+
+function renderTable(refs,showAgent){
+  if(!refs.length) return empty();
+  return `<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>País</th><th>Producto</th>${showAgent?'<th>Agente</th>':''}<th>Estado</th><th>Prima</th><th>Comisión</th><th>Fecha</th></tr></thead><tbody>
+    ${refs.map(r=>`<tr>
+      <td><div class="td-name">${r.client_name}</div><div class="td-sub">${r.client_email||''}</div></td>
+      <td>${FLAGS[r.country]||'🌎'} ${COUNTRY_NAMES[r.country]||r.country}</td>
+      <td style="color:var(--text2)">${r.product}</td>
+      ${showAgent?`<td>${allUsers.find(u=>u.id===r.agent_id)?.full_name||'—'}</td>`:''}
+      <td>${statusBadge(r.status)}</td>
+      <td>${r.prima?'$'+Number(r.prima).toLocaleString():'—'}</td>
+      <td style="color:var(--green);font-weight:600">${r.comm_generated?'$'+Number(r.comm_generated).toLocaleString():'—'}</td>
+      <td style="color:var(--text3)">${formatDate(r.created_at)}</td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function renderReports(){
+  const intlSold=referrals.filter(r=>r.status==='sold');
+  const gtSold=gtReferrals.filter(r=>r.status==='sold');
+  const totalPrima=intlSold.reduce((a,r)=>a+(r.prima||0),0);
+  const totalComm=intlSold.reduce((a,r)=>a+(r.comm_generated||0),0);
+  const totalAgent=intlSold.reduce((a,r)=>a+(r.agent_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  const totalLeader=intlSold.reduce((a,r)=>a+(r.leader_comm||0),0);
+  const gtPrima=gtSold.reduce((a,r)=>a+(r.prima||0),0);
+  const gtAgent=gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+
+  const countryRows=['ve','do','co'].map(cc=>{
+    const rs=referrals.filter(r=>r.country===cc);
+    const s=rs.filter(r=>r.status==='sold');
+    const p=s.reduce((a,r)=>a+(r.prima||0),0);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">${FLAGS[cc]}</span><div><div style="font-size:13px;font-weight:500">${COUNTRY_NAMES[cc]}</div><div style="font-size:11px;color:var(--text3)">${rs.length} refs · ${s.length} ventas</div></div></div>
+      <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:var(--amber)">$${p.toLocaleString()}</div><div style="font-size:11px;color:var(--text3)">en primas</div></div></div>`;
+  }).join('');
+
+  const gtProdRows=['auto','casa','comercial','personalizado'].map(p=>{
+    const rs=gtReferrals.filter(r=>r.gt_product===p||(p==='personalizado'&&!['auto','casa','comercial'].includes(r.gt_product)));
+    const s=rs.filter(r=>r.status==='sold');
+    const comm=s.reduce((a,r)=>a+(r.agent_comm||0),0);
+    if(!rs.length) return '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">${GT_ICONS[p]||'✏️'}</span><div><div style="font-size:13px;font-weight:500">${GT_LABELS[p]||'Personalizado'}</div><div style="font-size:11px;color:var(--text3)">${rs.length} refs · ${s.length} vendidos</div></div></div>
+      <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:var(--gt-gold2)">$${comm}</div><div style="font-size:11px;color:var(--text3)">comisiones</div></div></div>`;
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val">$${totalPrima.toLocaleString()}</div><div class="metric-label">Prima Intl.</div></div>
+      <div class="metric"><div class="metric-val">$${totalComm.toLocaleString()}</div><div class="metric-label">Com. Intl.</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgent}</div><div class="metric-label">Pagado agentes (total)</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--teal)">$${totalLeader}</div><div class="metric-label">Override líderes</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🌎</span><div class="section-title">Internacional — por país</div></div>${countryRows}</div>
+      <div class="card" style="border-color:rgba(212,160,23,.2)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🏅</span><div class="section-title" style="color:var(--gt-gold2)">GoldenTrust USA</div></div>${gtProdRows||'<div style="color:var(--text3);font-size:13px">Sin ventas GT aún</div>'}</div>
+    </div>`;
+}
+
+function renderPayCommissions(){
+  const intlSold=filterByPeriod(referrals.filter(r=>r.status==='sold'));
+  const gtSold=filterByPeriod(gtReferrals.filter(r=>r.status==='sold'));
+
+  const agentMap={};
+  const addA=(r,platform)=>{
+    const k=r.agent_id;
+    const agent=allUsers.find(u=>u.id===k)||{};
+    if(!agentMap[k]) agentMap[k]={name:agent.full_name||'—',code:agent.agent_code||'—',phone:agent.phone||'—',agency:allAgencies.find(a=>a.id===agent.agency_id)?.name||'—',leader:allUsers.find(u=>u.id===agent.leader_id)?.full_name||'—',intl:0,gt:0,intlPolicies:[],gtPolicies:[]};
+    if(platform==='intl'){agentMap[k].intl+=(r.agent_comm||0);agentMap[k].intlPolicies.push({client:r.client_name,comm:r.agent_comm||0});}
+    else{agentMap[k].gt+=(r.agent_comm||0);agentMap[k].gtPolicies.push({client:r.client_name,comm:r.agent_comm||0});}
+  };
+  intlSold.forEach(r=>addA(r,'intl'));
+  gtSold.forEach(r=>addA(r,'gt'));
+
+  const leaderMap={};
+  intlSold.forEach(r=>{if(!r.leader_comm)return;const k=r.leader_id;const l=allUsers.find(u=>u.id===k)||{};if(!leaderMap[k])leaderMap[k]={name:l.full_name||'—',agency:allAgencies.find(a=>a.id===l.agency_id)?.name||'—',phone:l.phone||'—',override:0};leaderMap[k].override+=(r.leader_comm||0);});
+
+  const agents=Object.values(agentMap);
+  const leaders=Object.values(leaderMap);
+  const totalAgents=agents.reduce((a,v)=>a+v.intl+v.gt,0);
+  const totalLeaders=leaders.reduce((a,v)=>a+v.override,0);
+
+  const agentRows=agents.map((a,i)=>{
+    const total=a.intl+a.gt;
+    const intlDet=a.intlPolicies.map(p=>'<div style="font-size:10px;color:var(--text3)">'+p.client+' — $'+p.comm+'</div>').join('');
+    const gtDet=a.gtPolicies.map(p=>'<div style="font-size:10px;color:var(--text3)">'+p.client+' — $'+p.comm+'</div>').join('');
+    return '<tr style="vertical-align:top">'
+      +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--purple2);background:var(--purple-bg);padding:2px 7px;border-radius:5px">'+a.code+'</span></td>'
+      +'<td><div class="td-name">'+a.name+'</div><div class="td-sub">📱 '+a.phone+'</div></td>'
+      +'<td><div style="font-size:12px">'+a.leader+'</div><div class="td-sub">'+a.agency+'</div></td>'
+      +'<td>'+(a.intl?'<div style="color:var(--purple2);font-weight:600">$'+a.intl+'</div>'+intlDet:'<span style="color:var(--text3)">—</span>')+'</td>'
+      +'<td>'+(a.gt?'<div style="color:var(--gt-gold2);font-weight:600">$'+a.gt+'</div>'+gtDet:'<span style="color:var(--text3)">—</span>')+'</td>'
+      +'<td><div style="font-size:18px;font-weight:700;color:var(--green)">$'+total+'</div></td>'
+      +'<td><button class="btn btn-success btn-sm" data-name="'+a.name+'" data-amount="'+total+'" onclick="markPaidBtn(this)">✓ Pagado</button></td></tr>';
+  }).join('');
+
+  const leaderRows=leaders.map((l,i)=>
+    '<tr><td colspan="2"><div class="td-name">'+l.name+'</div><div class="td-sub">📱 '+l.phone+' · '+l.agency+'</div></td>'
+    +'<td colspan="2" style="color:var(--teal)">Override 10%</td>'
+    +'<td></td><td><div style="font-size:18px;font-weight:700;color:var(--teal)">$'+l.override+'</div></td>'
+    +'<td><button class="btn btn-success btn-sm" data-name="'+l.name+'" data-amount="'+l.override+'" onclick="markPaidBtn(this)">✓ Pagado</button></td></tr>'
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics" style="grid-template-columns:repeat(3,1fr)">
+      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgents}</div><div class="metric-label">A pagar a agentes</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--teal)">$${totalLeaders}</div><div class="metric-label">Override líderes</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${totalAgents+totalLeaders}</div><div class="metric-label">Total a desembolsar</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-head" style="margin-bottom:16px"><div class="section-title">💰 Pago a agentes</div><div style="display:flex;gap:8px"><span class="badge" style="background:var(--purple-bg);color:var(--purple2)">🌎 Intl.</span><span class="gt-badge">🏅 GT</span></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Agente</th><th>Líder / Agencia</th><th>Intl.</th><th>GT</th><th>Total</th><th>Estado</th></tr></thead><tbody>${agentRows||'<tr><td colspan="7" style="text-align:center;color:var(--text3)">Sin comisiones en este período</td></tr>'}</tbody></table></div>
+    </div>
+    ${leaderRows?`<div class="card"><div class="section-head" style="margin-bottom:16px"><div class="section-title">🏆 Override líderes (10%)</div></div><div class="table-wrap"><table><thead><tr><th colspan="2">Líder</th><th colspan="2">Concepto</th><th></th><th>Total</th><th>Estado</th></tr></thead><tbody>${leaderRows}</tbody></table></div></div>`:''}`;
+}
+
+function markPaidBtn(btn){
+  const name=btn.getAttribute('data-name');
+  const amount=btn.getAttribute('data-amount');
+  showToast('Pago $'+amount+' a '+name+' marcado','💰');
+  btn.textContent='✓ Procesado';btn.disabled=true;btn.style.opacity='0.5';
+}
+
+/* ══════════════════════ NOTIFICATIONS ══════════════════════ */
+function updateNotifBadge(){
+  const unread=notifications.filter(n=>!n.is_read).length;
+  const el=document.getElementById('notifCount');
+  if(el){el.textContent=unread>9?'9+':unread;el.classList.toggle('show',unread>0);}
+}
+function toggleNotifPanel(){
+  const p=document.getElementById('notifPanel');
+  p.classList.toggle('show');
+  if(p.classList.contains('show')) renderNotifList();
+}
+function renderNotifList(){
+  const el=document.getElementById('notifList');
+  if(!notifications.length){el.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3)">Sin notificaciones</div>';return;}
+  el.innerHTML=notifications.map(n=>`
+    <div class="notif-item${!n.is_read?' unread':''}" onclick="markRead('${n.id}')">
+      <div class="notif-item-title">${!n.is_read?'<span style="width:6px;height:6px;border-radius:50%;background:var(--purple);display:inline-block;flex-shrink:0"></span>':''}${n.title}</div>
+      <div class="notif-item-body">${n.body}</div>
+      <div class="notif-item-time">🕐 ${formatDate(n.created_at)}</div>
+    </div>`).join('');
+}
+async function markRead(id){
+  const n=notifications.find(x=>x.id===id);
+  if(n){n.is_read=true;await sb.from('notifications').update({is_read:true}).eq('id',id);}
+  renderNotifList();updateNotifBadge();
+}
+async function markAllRead(){
+  notifications.forEach(n=>n.is_read=true);
+  await sb.from('notifications').update({is_read:true}).eq('user_id',currentUser.id);
+  renderNotifList();updateNotifBadge();
+  document.getElementById('notifPanel').classList.remove('show');
+}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('notifPanel'),b=document.getElementById('notifBell');
+  if(p&&b&&!p.contains(e.target)&&!b.contains(e.target)) p.classList.remove('show');
+});
+
+/* ══════════════════════ UTILS ══════════════════════ */
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+function showToast(msg,icon='ℹ️'){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('toastIcon').textContent=icon;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
