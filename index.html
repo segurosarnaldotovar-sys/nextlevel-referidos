@@ -1519,9 +1519,11 @@ function renderMyAgents(){
       +'<td style="color:var(--text3)">'+(a.phone||'—')+'</td>'
       +'<td>'+refs+'</td><td>'+sold.length+'</td>'
       +'<td style="color:var(--teal);font-weight:600">'+(ow?'$'+ow:'—')+'</td>'
-      +'<td>'+(a.is_active
+      +'<td><div style="display:flex;flex-direction:column;gap:4px">'+(a.is_active
         ?('<button class="btn btn-danger btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="deactivateUserEl(this)">✕ Desactivar</button>')
-        :('<button class="btn btn-success btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="reactivateUserEl(this)">✓ Reactivar</button>'))+'</td>'
+        :('<button class="btn btn-success btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="reactivateUserEl(this)">✓ Reactivar</button>'))
+      +'<button class="btn btn-danger btn-sm" style="background:rgba(240,84,92,0.2)" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="deleteUserEl(this)">🗑 Eliminar</button>'
+      +'</div></td>'
       +'</tr>';
   }).join('');
   document.getElementById('mainContent').innerHTML=`
@@ -1538,18 +1540,19 @@ function renderAgencies(){
     const ag=allAgencies.find(a=>a.id===l.agency_id);
     const agents=allUsers.filter(u=>u.leader_id===l.id).length;
     const refs=referrals.filter(r=>r.leader_id===l.id).length;
-    return '<tr style="'+(l.is_active?'':'opacity:0.5')+'">'
+    const lid=l.id, lname=l.full_name.replace(/'/g,'&apos;');
+    const agid=ag?ag.id:'', agname=ag?ag.name.replace(/'/g,'&apos;'):'';
+    return '<tr>'
       +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--amber);background:var(--amber-bg);padding:2px 8px;border-radius:5px">'+(l.agent_code||'—')+'</span></td>'
       +'<td><div class="td-name">'+l.full_name+'</div><div class="td-sub">@'+l.username+'</div></td>'
       +'<td><div style="font-size:13px">'+(ag?.name||'—')+'</div><div style="font-size:11px;color:var(--text3)">Agentes: '+(ag?.comm_pct||20)+'% · Override: '+(ag?.override_pct||10)+'%</div></td>'
       +'<td style="color:var(--text3)">'+(l.phone||'—')+'</td>'
       +'<td>'+agents+'</td><td>'+refs+'</td>'
-      +'<td style="display:flex;flex-direction:column;gap:4px">'
-      +(l.is_active
-        ?('<button class="btn btn-danger btn-sm" data-uid="'+l.id+'" data-uname="'+l.full_name+'" onclick="deactivateUserEl(this)">✕ Desactivar</button>')
-        :('<button class="btn btn-success btn-sm" data-uid="'+l.id+'" data-uname="'+l.full_name+'" onclick="reactivateUserEl(this)">✓ Reactivar</button>'))
-      +(ag?('<button class="btn btn-danger btn-sm" data-agid="'+ag.id+'" data-agname="'+ag.name+'" onclick="deleteAgencyEl(this)">🗑 Agencia</button>'):'')
-      +'</td></tr>';
+      +'<td><div style="display:flex;flex-direction:column;gap:4px">'
+      +'<button class="btn btn-danger btn-sm" data-uid="'+lid+'" data-uname="'+lname+'" onclick="deactivateUserEl(this)">✕ Desactivar</button>'
+      +'<button class="btn btn-danger btn-sm" style="background:rgba(240,84,92,0.2)" data-uid="'+lid+'" data-uname="'+lname+'" onclick="deleteUserEl(this)">🗑 Eliminar líder</button>'
+      +(ag?'<button class="btn btn-danger btn-sm" style="background:rgba(240,84,92,0.2)" data-agid="'+agid+'" data-agname="'+agname+'" onclick="deleteAgencyEl(this)">🗑 Eliminar agencia</button>':'')
+      +'</div></td></tr>';
   }).join('');
   document.getElementById('mainContent').innerHTML=`
     <div class="card">
@@ -1574,9 +1577,11 @@ function renderAllAgents(){
       +'<td>'+(leader?.full_name||'—')+'</td>'
       +'<td>'+(ag?.name||'—')+'</td>'
       +'<td>'+refs+'</td><td>'+sold+'</td>'
-      +'<td>'+(a.is_active
+      +'<td><div style="display:flex;flex-direction:column;gap:4px">'+(a.is_active
         ?('<button class="btn btn-danger btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="deactivateUserEl(this)">✕ Desactivar</button>')
-        :('<button class="btn btn-success btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="reactivateUserEl(this)">✓ Reactivar</button>'))+'</td>'
+        :('<button class="btn btn-success btn-sm" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="reactivateUserEl(this)">✓ Reactivar</button>'))
+      +'<button class="btn btn-danger btn-sm" style="background:rgba(240,84,92,0.2)" data-uid="'+a.id+'" data-uname="'+a.full_name+'" onclick="deleteUserEl(this)">🗑 Eliminar</button>'
+      +'</div></td>'
       +'</tr>';
   }).join('');
   document.getElementById('mainContent').innerHTML=`
