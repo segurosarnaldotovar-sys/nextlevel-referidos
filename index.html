@@ -205,16 +205,7 @@ textarea{resize:vertical;min-height:72px}
       Entrar
     </button>
     <div id="authError" style="display:none;background:var(--red-bg);border:1px solid rgba(240,84,92,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-top:12px;text-align:center"></div>
-    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-      <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Accesos de prueba</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button onclick="demoLogin('roberto.diaz','CEO@NxL2024#')" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--amber);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.15s" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border2)'">👑 CEO</button>
-        <button onclick="demoLogin('carlos.rivera','lider2024')" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--purple2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--border2)'">🏆 Líder</button>
-        <button onclick="demoLogin('luisa.martinez','agente2024')" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--green);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border2)'">👤 Agente</button>
-        <button onclick="demoLogin('procesador.intl','NxL@Intl2024#')" style="padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.15s" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)'">⚙️ Procesador</button>
-        <button onclick="demoLogin('procesador.gt','GT@Gold2024#')" style="grid-column:1/-1;padding:8px;background:var(--gt-gold-bg);border:1px solid rgba(212,160,23,.3);border-radius:8px;color:var(--gt-gold2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.15s" onmouseover="this.style.borderColor='var(--gt-gold)'" onmouseout="this.style.borderColor='rgba(212,160,23,.3)'">🏅 Equipo GoldenTrust</button>
-      </div>
-    </div>
+
   </div>
 </div>
 </div>
@@ -551,12 +542,6 @@ async function doLogin(){
     showAuthError('Error de conexión');
     btn.innerHTML='Entrar';btn.disabled=false;
   }
-}
-
-function demoLogin(user, pass){
-  document.getElementById('loginUser').value = user;
-  document.getElementById('loginPass').value = pass;
-  doLogin();
 }
 
 function showAuthError(msg){
