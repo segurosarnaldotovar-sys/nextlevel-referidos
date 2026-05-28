@@ -1508,7 +1508,7 @@ function renderCommissions(){
 }
 
 function renderMyAgents(){
-  const myAgents=allUsers.filter(u=>u.role==='agente'&&u.leader_id===currentUser.id&&u.is_active!==false);
+  const myAgents=allUsers.filter(u=>u.role==='agente'&&u.leader_id===currentUser.id&&u.is_active===true);
   const rows=myAgents.map(a=>{
     const refs=referrals.filter(r=>r.agent_id===a.id).length;
     const sold=referrals.filter(r=>r.agent_id===a.id&&r.status==='sold');
@@ -1533,7 +1533,7 @@ function renderMyAgents(){
 }
 
 function renderAgencies(){
-  const leaders=allUsers.filter(u=>u.role==='lider'&&u.is_active!==false);
+  const leaders=allUsers.filter(u=>u.role==='lider'&&u.is_active===true);
   const rows=leaders.map(l=>{
     const ag=allAgencies.find(a=>a.id===l.agency_id);
     const agents=allUsers.filter(u=>u.leader_id===l.id).length;
@@ -1562,7 +1562,7 @@ function renderAgencies(){
 }
 
 function renderAllAgents(){
-  const agents=allUsers.filter(u=>u.role==='agente'&&u.is_active!==false);
+  const agents=allUsers.filter(u=>u.role==='agente'&&u.is_active===true);
   const rows=agents.map(a=>{
     const leader=allUsers.find(u=>u.id===a.leader_id);
     const ag=allAgencies.find(x=>x.id===a.agency_id);
