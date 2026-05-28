@@ -1645,9 +1645,26 @@ function renderReports(){
     </div>`;
 }
 
+let payFilter = 'all'; // 'all' | 'intl' | 'gt'
+
+function setPayFilter(f){
+  payFilter=f;
+  renderPayCommissions();
+}
+
 function renderPayCommissions(){
-  const intlSold=filterByPeriod(referrals.filter(r=>r.status==='sold'));
-  const gtSold=filterByPeriod(gtReferrals.filter(r=>r.status==='sold'));
+  // Platform filter pills
+  const filterBar = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text3);font-weight:500">Plataforma:</span>
+    <button onclick="setPayFilter('all')" class="df-pill${payFilter==='all'?' active':''}" style="display:inline-flex;align-items:center;gap:5px">🌐 Todas</button>
+    <button onclick="setPayFilter('intl')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${payFilter==='intl'?'var(--purple)':'var(--border2)'};background:${payFilter==='intl'?'var(--purple-bg)':'transparent'};color:${payFilter==='intl'?'var(--purple2)':'var(--text2)'};font-family:var(--font)">🌎 Solo Internacional</button>
+    <button onclick="setPayFilter('gt')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${payFilter==='gt'?'var(--gt-gold)':'var(--border2)'};background:${payFilter==='gt'?'var(--gt-gold-bg)':'transparent'};color:${payFilter==='gt'?'var(--gt-gold2)':'var(--text2)'};font-family:var(--font)">🏅 Solo GoldenTrust</button>
+  </div>`;
+
+  const allIntlSold=filterByPeriod(referrals.filter(r=>r.status==='sold'));
+  const allGTSold=filterByPeriod(gtReferrals.filter(r=>r.status==='sold'));
+  const intlSold = payFilter==='gt' ? [] : allIntlSold;
+  const gtSold   = payFilter==='intl' ? [] : allGTSold;
 
   const agentMap={};
   const addA=(r,platform)=>{
@@ -1676,10 +1693,10 @@ function renderPayCommissions(){
       +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--purple2);background:var(--purple-bg);padding:2px 7px;border-radius:5px">'+a.code+'</span></td>'
       +'<td><div class="td-name">'+a.name+'</div><div class="td-sub">📱 '+a.phone+'</div></td>'
       +'<td><div style="font-size:12px">'+a.leader+'</div><div class="td-sub">'+a.agency+'</div></td>'
-      +'<td>'+(a.intl?'<div style="color:var(--purple2);font-weight:600">$'+a.intl+'</div>'+intlDet:'<span style="color:var(--text3)">—</span>')+'</td>'
-      +'<td>'+(a.gt?'<div style="color:var(--gt-gold2);font-weight:600">$'+a.gt+'</div>'+gtDet:'<span style="color:var(--text3)">—</span>')+'</td>'
-      +'<td><div style="font-size:18px;font-weight:700;color:var(--green)">$'+total+'</div></td>'
-      +'<td><button class="btn btn-success btn-sm" data-name="'+a.name+'" data-amount="'+total+'" onclick="markPaidBtn(this)">✓ Pagado</button></td></tr>';
+      +(payFilter!=='gt'?'<td>'+(a.intl?'<div style="color:var(--purple2);font-weight:600">$'+a.intl+'</div>'+intlDet:'<span style="color:var(--text3)">—</span>')+'</td>':'')
+      +(payFilter!=='intl'?'<td>'+(a.gt?'<div style="color:var(--gt-gold2);font-weight:600">$'+a.gt+'</div>'+gtDet:'<span style="color:var(--text3)">—</span>')+'</td>':'')
+      +'<td><div style="font-size:18px;font-weight:700;color:var(--green)">$'+(payFilter==='intl'?a.intl:payFilter==='gt'?a.gt:total)+'</div></td>'
+      +'<td><button class="btn btn-success btn-sm" data-name="'+a.name+'" data-amount="'+(payFilter==="intl"?a.intl:payFilter==="gt"?a.gt:total)+'" onclick="markPaidBtn(this)">✓ Pagado</button></td></tr>';
   }).join('');
 
   const leaderRows=leaders.map((l,i)=>
@@ -1689,18 +1706,31 @@ function renderPayCommissions(){
     +'<td><button class="btn btn-success btn-sm" data-name="'+l.name+'" data-amount="'+l.override+'" onclick="markPaidBtn(this)">✓ Pagado</button></td></tr>'
   ).join('');
 
+  // Summary labels by filter
+  const filterLabel = payFilter==='intl'?'🌎 Solo Internacional':payFilter==='gt'?'🏅 Solo GoldenTrust':'🌐 Todas las plataformas';
+  const intlTotal = allIntlSold.reduce((a,r)=>a+(r.agent_comm||0)+(r.leader_comm||0),0);
+  const gtTotal   = allGTSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+
   document.getElementById('mainContent').innerHTML=`
     ${dateFilterBar()}
-    <div class="grid-metrics" style="grid-template-columns:repeat(3,1fr)">
-      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgents}</div><div class="metric-label">A pagar a agentes</div></div>
+    ${filterBar}
+    <div class="grid-metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="metric"><div class="metric-val" style="color:var(--purple2)">$${intlTotal}</div><div class="metric-label">🌎 Total Internacional</div></div>
+      <div class="metric gt-metric"><div class="metric-val" style="color:var(--gt-gold2)">$${gtTotal}</div><div class="metric-label">🏅 Total GoldenTrust</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgents}</div><div class="metric-label">A pagar agentes</div><div class="metric-sub" style="color:var(--text3)">${filterLabel}</div></div>
       <div class="metric"><div class="metric-val" style="color:var(--teal)">$${totalLeaders}</div><div class="metric-label">Override líderes</div></div>
-      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${totalAgents+totalLeaders}</div><div class="metric-label">Total a desembolsar</div></div>
     </div>
     <div class="card" style="margin-bottom:16px">
-      <div class="section-head" style="margin-bottom:16px"><div class="section-title">💰 Pago a agentes</div><div style="display:flex;gap:8px"><span class="badge" style="background:var(--purple-bg);color:var(--purple2)">🌎 Intl.</span><span class="gt-badge">🏅 GT</span></div></div>
+      <div class="section-head" style="margin-bottom:16px">
+        <div class="section-title">💰 Pago a agentes — ${filterLabel}</div>
+        <div style="display:flex;gap:8px">
+          ${payFilter!=='gt'?'<span class="badge" style="background:var(--purple-bg);color:var(--purple2)">🌎 Intl.</span>':''}
+          ${payFilter!=='intl'?'<span class="gt-badge">🏅 GT</span>':''}
+        </div>
+      </div>
       <div class="table-wrap"><table><thead><tr><th>Código</th><th>Agente</th><th>Líder / Agencia</th><th>Intl.</th><th>GT</th><th>Total</th><th>Estado</th></tr></thead><tbody>${agentRows||'<tr><td colspan="7" style="text-align:center;color:var(--text3)">Sin comisiones en este período</td></tr>'}</tbody></table></div>
     </div>
-    ${leaderRows?`<div class="card"><div class="section-head" style="margin-bottom:16px"><div class="section-title">🏆 Override líderes (10%)</div></div><div class="table-wrap"><table><thead><tr><th colspan="2">Líder</th><th colspan="2">Concepto</th><th></th><th>Total</th><th>Estado</th></tr></thead><tbody>${leaderRows}</tbody></table></div></div>`:''}`;
+    ${(payFilter!=='gt'&&leaderRows)?`<div class="card"><div class="section-head" style="margin-bottom:16px"><div class="section-title">🏆 Override líderes (10%) — Internacional</div></div><div class="table-wrap"><table><thead><tr><th colspan="2">Líder</th><th colspan="2">Concepto</th><th></th><th>Total</th><th>Estado</th></tr></thead><tbody>${leaderRows}</tbody></table></div></div>`:''}`;
 }
 
 function markPaidBtn(btn){
