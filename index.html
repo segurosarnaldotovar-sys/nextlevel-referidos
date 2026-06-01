@@ -1272,12 +1272,20 @@ function calcComm(){
     const r=referrals.find(x=>x.id===currentRefId);
     const refUser=allUsers.find(u=>u.id===(r?.agent_id||currentUser.id));
     const refIsLider=refUser&&refUser.role==='lider';
-    const ag=allAgencies.find(a=>a.id===currentUser.agency_id);
-    const agPct=refIsLider?0.30:(ag?.comm_pct||20)/100;
+    // Get agent's agency for comm rates
+    const agentAgency=allAgencies.find(a=>a.id===(refUser?.agency_id||currentUser.agency_id));
+    const agPct=refIsLider?0.30:(agentAgency?.comm_pct||20)/100;
+    const ovPct=(agentAgency?.override_pct||10)/100;
+    // Check if leader is CEO — use CEO override
+    const agentLeader=allUsers.find(u=>u.id===r?.leader_id);
+    const leaderIsCEO=agentLeader&&agentLeader.role==='ceo';
+    const overrideLabel=leaderIsCEO?'CEO override ('+Math.round(ovPct*100)+'%)':'Líder ('+(agentAgency?.override_pct||10)+'%)';
     document.getElementById('agentCommDisplay').textContent='$'+Math.round(comm*agPct);
-    document.getElementById('agentCommLabel').textContent=refIsLider?'Líder (30%)':'Agente ('+(ag?.comm_pct||20)+'%)';
+    document.getElementById('agentCommLabel').textContent=refIsLider?'Líder (30%)':'Agente ('+(agentAgency?.comm_pct||20)+'%)';
     document.getElementById('leaderCommBlock').style.display=refIsLider?'none':'block';
-    document.getElementById('leaderCommDisplay').textContent='$'+Math.round(comm*(ag?.override_pct||10)/100);
+    document.getElementById('leaderCommDisplay').textContent='$'+Math.round(comm*ovPct);
+    const leaderLbl=document.getElementById('leaderCommBlock').querySelector('div:last-child');
+    if(leaderLbl) leaderLbl.textContent=overrideLabel;
     document.getElementById('commResult').style.display='block';
   }
 }
@@ -1943,15 +1951,20 @@ async function registerAgentCEO(){
   if(pass.length<8){showToast('Contraseña mínimo 8 caracteres','⚠️');return;}
   if(allUsers.find(u=>u.username===username)){showToast('Ese usuario ya existe','⚠️');return;}
   const leader = leaderId ? allUsers.find(u=>u.id===leaderId) : null;
-  const ag = leader ? allAgencies.find(a=>a.id===leader.agency_id) : allAgencies.find(a=>a.name==='Next Level Global');
-  const prefix = ag?.prefix||'NL';
-  const cnt = allUsers.filter(u=>u.role==='agente'&&(ag?u.agency_id===ag.id:true)).length;
+  // If no leader selected, agent is direct under CEO — use NLG agency
+  const ag = leader
+    ? allAgencies.find(a=>a.id===leader.agency_id)
+    : allAgencies.find(a=>a.prefix==='NLG') || allAgencies[0];
+  const prefix = ag?.prefix||'NLG';
+  const cnt = allUsers.filter(u=>u.role==='agente'&&u.agency_id===(ag?.id||null)).length;
   const code = prefix+'-'+String(cnt+1).padStart(3,'0');
+  // Direct CEO agent: leader_id = CEO's id so CEO gets override
+  const finalLeaderId = leaderId || currentUser.id;
   try{
     const {data:u,error} = await sb.from('users').insert({
       username, full_name:name, phone, role:'agente',
       agency_id: ag?.id||null,
-      leader_id: leaderId||null,
+      leader_id: finalLeaderId,
       agent_code: code, created_by: currentUser.id, is_active: true
     }).select().single();
     if(error) throw error;
