@@ -715,7 +715,7 @@ const TITLES = {
   'my-referrals':'Mis referidos — Intl.','team-referrals':'Equipo Internacional',
   'new-referral':'Nuevo referido',commissions:'Comisiones',
   'referrals-all':'Todos los referidos — Intl.',agencies:'Agencias y líderes',
-  agents:'Todos los agentes','register-leader':'Registrar líder',
+  agents:'Todos los agentes','register-leader':'Registrar líder','register-agent-ceo':'Registrar agente',
   reports:'Reportes','pay-commissions':'Pagar comisiones','my-agents':'Mis agentes',
   'gt-queue':'Cola GoldenTrust','gt-progress':'En proceso — GT','gt-closed':'Cerrados — GT',
   'gt-my-referrals':'Mis referidos — GoldenTrust','gt-team-referrals':'Equipo GoldenTrust','gt-all':'GoldenTrust — Todos',
@@ -742,6 +742,7 @@ function navigate(id){
     case 'agencies':         renderAgencies();break;
     case 'agents':           renderAllAgents();break;
     case 'register-leader':  openModal('modalRegisterLeader');renderDashboard();break;
+    case 'register-agent-ceo': openModalNewAgentCEO();renderAllAgents();break;
     case 'reports':          renderReports();break;
     case 'pay-commissions':  renderPayCommissions();break;
     case 'my-agents':        renderMyAgents();break;
