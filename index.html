@@ -673,6 +673,8 @@ function doLogout(){
 const NAV = {
   ceo:[
     {id:'dashboard',icon:'⊞',label:'Dashboard'},
+    {id:'ceo-new-referral',icon:'→',label:'Nuevo referido'},
+    {id:'ceo-my-referrals',icon:'≡',label:'Mis referidos'},
     {id:'referrals-all',icon:'≡',label:'Todos los referidos'},
     {id:'gt-all',icon:'🏅',label:'GoldenTrust',gt:true},
     {id:'agencies',icon:'⌂',label:'Agencias y líderes'},
@@ -751,6 +753,7 @@ const TITLES = {
   'new-referral':'Nuevo referido',commissions:'Comisiones',
   'referrals-all':'Todos los referidos — Intl.',agencies:'Agencias y líderes',
   agents:'Todos los agentes','register-leader':'Registrar líder','register-agent-ceo':'Registrar agente',
+  'ceo-new-referral':'Nuevo referido','ceo-my-referrals':'Mis referidos',
   reports:'Reportes','pay-commissions':'Pagar comisiones','my-agents':'Mis agentes',
   'gt-queue':'Cola GoldenTrust','gt-progress':'En proceso — GT','gt-closed':'Cerrados — GT',
   'gt-my-referrals':'Mis referidos — GoldenTrust','gt-team-referrals':'Equipo GoldenTrust','gt-all':'GoldenTrust — Todos',
@@ -778,6 +781,8 @@ function navigate(id){
     case 'agents':           renderAllAgents();break;
     case 'register-leader':  openModal('modalRegisterLeader');renderDashboard();break;
     case 'register-agent-ceo': openModalNewAgentCEO();renderDashboard();break;
+    case 'ceo-new-referral': openModal('modalNuevoRef');renderCEOMyReferrals();break;
+    case 'ceo-my-referrals': renderCEOMyReferrals();break;
     case 'reports':          renderReports();break;
     case 'pay-commissions':  renderPayCommissions();break;
     case 'my-agents':        renderMyAgents();break;
@@ -849,6 +854,40 @@ function renderDashboard(){
   else if(r==='proc-gt') renderGTProcDash();
 }
 
+
+function renderCEOMyReferrals(){
+  const myRefs = filterByPeriod(referrals.filter(r=>r.agent_id===currentUser.id));
+  const myGT   = filterByPeriod(gtReferrals.filter(r=>r.agent_id===currentUser.id));
+  const sold   = myRefs.filter(r=>r.status==='sold');
+  const gtSold = myGT.filter(r=>r.status==='sold');
+  const comm   = sold.reduce((a,r)=>a+(r.agent_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  document.getElementById('mainContent').innerHTML=`
+    ${dateFilterBar()}
+    <div class="grid-metrics">
+      <div class="metric"><div class="metric-val">${myRefs.length}</div><div class="metric-label">Refs. Internacionales</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--gt-gold2)">${myGT.length}</div><div class="metric-label">Refs. GoldenTrust</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">${sold.length+gtSold.length}</div><div class="metric-label">Vendidos</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--amber)">$${comm}</div><div class="metric-label">Mis comisiones</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div class="card" style="cursor:pointer;border-color:rgba(124,106,247,.35)" onclick="openModal('modalNuevoRef')">
+        <div style="font-size:30px;margin-bottom:8px">🌎</div>
+        <div style="font-size:14px;font-weight:600;color:var(--purple2)">Referido Internacional</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">🇻🇪 Venezuela · 🇩🇴 R. Dominicana · 🇨🇴 Colombia</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3)">Tu comisión <span style="color:var(--purple2);font-weight:600">40%</span></div>
+      </div>
+      <div class="card" style="cursor:pointer;border-color:rgba(212,160,23,.35)" onclick="openModal('modalNuevoRef');selCountry('us')">
+        <div style="font-size:30px;margin-bottom:8px">🏅</div>
+        <div style="font-size:14px;font-weight:600;color:var(--gt-gold2)">GoldenTrust</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">🇺🇸 Autos · Casas · Comerciales</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3)">Autos <span style="color:var(--gt-gold2);font-weight:600">$25</span> · Resto <span style="color:var(--gt-gold2);font-weight:600">20%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-head"><div class="section-title">Mis referidos Intl. — ${myRefs.length}</div></div>
+      ${myRefs.length?myRefs.map(r=>refCard(r,'lider')).join(''):empty()}
+    </div>`;
+}
 function renderCEODash(){
   const all=referrals; const gtAll=gtReferrals;
   const sold=all.filter(r=>r.status==='sold');
@@ -1274,14 +1313,15 @@ function calcComm(){
     const refIsLider=refUser&&refUser.role==='lider';
     // Get agent's agency for comm rates
     const agentAgency=allAgencies.find(a=>a.id===(refUser?.agency_id||currentUser.agency_id));
-    const agPct=refIsLider?0.30:(agentAgency?.comm_pct||20)/100;
+    const agPct=refUser?.role==='ceo'?0.40:refIsLider?0.30:(agentAgency?.comm_pct||20)/100;
+    const agLabel=refUser?.role==='ceo'?'CEO (40%)':refIsLider?'Líder (30%)':'Agente ('+(agentAgency?.comm_pct||20)+'%)';
     const ovPct=(agentAgency?.override_pct||10)/100;
     // Check if leader is CEO — use CEO override
     const agentLeader=allUsers.find(u=>u.id===r?.leader_id);
     const leaderIsCEO=agentLeader&&agentLeader.role==='ceo';
     const overrideLabel=leaderIsCEO?'CEO override ('+Math.round(ovPct*100)+'%)':'Líder ('+(agentAgency?.override_pct||10)+'%)';
     document.getElementById('agentCommDisplay').textContent='$'+Math.round(comm*agPct);
-    document.getElementById('agentCommLabel').textContent=refIsLider?'Líder (30%)':'Agente ('+(agentAgency?.comm_pct||20)+'%)';
+    document.getElementById('agentCommLabel').textContent=agLabel;
     document.getElementById('leaderCommBlock').style.display=refIsLider?'none':'block';
     document.getElementById('leaderCommDisplay').textContent='$'+Math.round(comm*ovPct);
     const leaderLbl=document.getElementById('leaderCommBlock').querySelector('div:last-child');
@@ -1303,9 +1343,10 @@ async function saveStatus(){
     updates.prima=parseFloat(document.getElementById('primaVal').value)||0;
     updates.comm_generated=parseFloat(document.getElementById('commVal').value)||0;
     const refUser=allUsers.find(u=>u.id===r.agent_id);
-    const refIsLider=refUser&&refUser.role==='lider';
+    const refIsLider=refUser&&(refUser.role==='lider'||refUser.role==='ceo');
+    const refCommPct=refUser?.role==='ceo'?0.40:refIsLider?0.30:(agentAgency?.comm_pct||20)/100;
     const agentAgency=allAgencies.find(a=>a.id===(refIsLider?r.agency_id:allUsers.find(u=>u.id===r.agent_id)?.agency_id));
-    updates.agent_comm=Math.round(updates.comm_generated*(refIsLider?0.30:(agentAgency?.comm_pct||20)/100));
+    updates.agent_comm=Math.round(updates.comm_generated*refCommPct);
     updates.leader_comm=refIsLider?0:Math.round(updates.comm_generated*(agentAgency?.override_pct||10)/100);
   }
 
