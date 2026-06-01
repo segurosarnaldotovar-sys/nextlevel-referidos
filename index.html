@@ -564,6 +564,12 @@ async function loadUserData(){
     referrals = data||[];
     const {data:gt} = await sb.from('gt_referrals').select('*, referral_notes(*)').eq('leader_id',currentUser.id).order('created_at',{ascending:false});
     gtReferrals = gt||[];
+    // Load passwords for leader's agents
+    const agentIds = allUsers.filter(u=>u.leader_id===currentUser.id).map(u=>u.id);
+    if(agentIds.length){
+      const {data:pws} = await sb.from('user_passwords').select('user_id, password_hash').in('user_id', agentIds);
+      if(pws) pws.forEach(p=>{ const u=allUsers.find(x=>x.id===p.user_id); if(u) u._password=p.password_hash; });
+    }
   } else if(role==='procesador'){
     const {data} = await sb.from('referrals').select('*, referral_notes(*)').order('created_at',{ascending:false});
     referrals = data||[];
@@ -577,6 +583,9 @@ async function loadUserData(){
     gtReferrals = gt||[];
     const {data:us} = await sb.from('users').select('*').order('created_at',{ascending:false});
     allUsers = us||[];
+    // Load passwords for CEO to see
+    const {data:pws} = await sb.from('user_passwords').select('user_id, password_hash');
+    if(pws) pws.forEach(p=>{ const u=allUsers.find(x=>x.id===p.user_id); if(u) u._password=p.password_hash; });
   }
   // Load notifications for this user
   const {data:notifs} = await sb.from('notifications').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(50);
@@ -634,6 +643,7 @@ const NAV = {
     {id:'agencies',icon:'⌂',label:'Agencias y líderes'},
     {id:'agents',icon:'◎',label:'Todos los agentes'},
     {id:'register-leader',icon:'＋',label:'Registrar líder'},
+    {id:'register-agent-ceo',icon:'＋',label:'Registrar agente'},
     {id:'reports',icon:'▨',label:'Reportes'},
     {id:'pay-commissions',icon:'$',label:'Pagar comisiones'},
   ],
@@ -1546,6 +1556,7 @@ function renderAgencies(){
     return '<tr>'
       +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--amber);background:var(--amber-bg);padding:2px 8px;border-radius:5px">'+(l.agent_code||'—')+'</span></td>'
       +'<td><div class="td-name">'+l.full_name+'</div><div class="td-sub">@'+l.username+'</div></td>'
+      +'<td><div style="font-family:var(--mono);font-size:11px;color:var(--purple2)">'+l.username+'</div><div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><span id="pw-'+l.id+'" style="letter-spacing:2px">••••••••</span><button onclick="togglePw(\''+l.id+'\',\''+( l._password||'—')+'\')" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3)">👁</button></div></td>'
       +'<td><div style="font-size:13px">'+(ag?.name||'—')+'</div><div style="font-size:11px;color:var(--text3)">Agentes: '+(ag?.comm_pct||20)+'% · Override: '+(ag?.override_pct||10)+'%</div></td>'
       +'<td style="color:var(--text3)">'+(l.phone||'—')+'</td>'
       +'<td>'+agents+'</td><td>'+refs+'</td>'
@@ -1808,6 +1819,20 @@ async function deleteAgencyConfirm(agencyId, agencyName){
     navigate('agencies');
   }catch(e){showToast('Error: '+e.message,'❌');}
 }
+
+function togglePw(id, pw){
+  const el = document.getElementById('pw-'+id);
+  if(!el) return;
+  if(el.textContent === '••••••••'){
+    el.textContent = pw;
+    el.style.letterSpacing = 'normal';
+    el.style.color = 'var(--green)';
+  } else {
+    el.textContent = '••••••••';
+    el.style.letterSpacing = '2px';
+    el.style.color = '';
+  }
+}
 function updateNotifBadge(){
   const unread=notifications.filter(n=>!n.is_read).length;
   const el=document.getElementById('notifCount');
@@ -1845,6 +1870,64 @@ document.addEventListener('click',e=>{
 });
 
 /* ══════════════════════ UTILS ══════════════════════ */
+
+function openModalNewAgentCEO(){
+  // Populate leader dropdown
+  const sel = document.getElementById('nac-leader');
+  if(sel){
+    sel.innerHTML = '<option value="">— Sin líder (directo al CEO) —</option>';
+    allUsers.filter(u=>u.role==='lider'&&u.is_active===true).forEach(l=>{
+      const ag = allAgencies.find(a=>a.id===l.agency_id);
+      sel.innerHTML += '<option value="'+l.id+'">'+l.full_name+(ag?' — '+ag.name:'')+'</option>';
+    });
+  }
+  openModal('modalNewAgentCEO');
+}
+
+function previewAgentCodeCEO(){
+  const leaderId = document.getElementById('nac-leader')?.value;
+  const leader = allUsers.find(u=>u.id===leaderId);
+  const ag = leader ? allAgencies.find(a=>a.id===leader.agency_id) : null;
+  const prefix = ag?.prefix || 'NL';
+  const cnt = allUsers.filter(u=>u.role==='agente'&&(ag?u.agency_id===ag.id:true)).length;
+  const code = prefix+'-'+String(cnt+1).padStart(3,'0');
+  document.getElementById('nacCodePreview').style.display='block';
+  document.getElementById('nacCodeValue').textContent=code;
+}
+
+async function registerAgentCEO(){
+  const name = document.getElementById('nac-name').value.trim();
+  const username = document.getElementById('nac-username').value.trim().toLowerCase();
+  const phone = document.getElementById('nac-phone').value.trim();
+  const leaderId = document.getElementById('nac-leader')?.value||null;
+  const pass = document.getElementById('nac-pass').value;
+  const pass2 = document.getElementById('nac-pass2').value;
+  if(!name||!username){showToast('Nombre y usuario requeridos','⚠️');return;}
+  if(pass!==pass2){showToast('Las contraseñas no coinciden','⚠️');return;}
+  if(pass.length<8){showToast('Contraseña mínimo 8 caracteres','⚠️');return;}
+  if(allUsers.find(u=>u.username===username)){showToast('Ese usuario ya existe','⚠️');return;}
+  const leader = leaderId ? allUsers.find(u=>u.id===leaderId) : null;
+  const ag = leader ? allAgencies.find(a=>a.id===leader.agency_id) : allAgencies.find(a=>a.name==='Next Level Global');
+  const prefix = ag?.prefix||'NL';
+  const cnt = allUsers.filter(u=>u.role==='agente'&&(ag?u.agency_id===ag.id:true)).length;
+  const code = prefix+'-'+String(cnt+1).padStart(3,'0');
+  try{
+    const {data:u,error} = await sb.from('users').insert({
+      username, full_name:name, phone, role:'agente',
+      agency_id: ag?.id||null,
+      leader_id: leaderId||null,
+      agent_code: code, created_by: currentUser.id, is_active: true
+    }).select().single();
+    if(error) throw error;
+    await sb.from('user_passwords').insert({user_id:u.id, password_hash:pass});
+    allUsers.push({...u, _password:pass});
+    closeModal('modalNewAgentCEO');
+    ['nac-name','nac-username','nac-phone','nac-email','nac-pass','nac-pass2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('nacCodePreview').style.display='none';
+    showToast('Agente registrado · Código: '+code,'✅');
+    navigate('agents');
+  }catch(e){showToast('Error: '+e.message,'❌');}
+}
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
