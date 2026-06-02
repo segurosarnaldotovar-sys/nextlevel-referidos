@@ -1257,9 +1257,11 @@ async function submitReferral(){
     agency_id:currentUser.agency_id,
     status_changed_at:dateStr,
   };
-  // Find leader
+  // Find leader — if current user is agente use their leader, if lider/ceo use themselves
   const myLeader=allUsers.find(u=>u.id===currentUser.leader_id);
-  if(myLeader)base.leader_id=myLeader.id;
+  if(myLeader) base.leader_id=myLeader.id;
+  else if(currentUser.role==='lider') base.leader_id=currentUser.id;
+  // CEO referrals have no leader_id (they are the top)
 
   const btn=document.getElementById('submitRefBtn');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
@@ -1732,7 +1734,14 @@ function setReportFilter(type, val){
 
 function applyReportFilter(refs){
   if(reportFilterAgent)  return refs.filter(r=>r.agent_id===reportFilterAgent);
-  if(reportFilterLeader) return refs.filter(r=>r.leader_id===reportFilterLeader);
+  if(reportFilterLeader){
+    // Match by leader_id on the referral OR by the agent's leader_id
+    return refs.filter(r=>{
+      if(r.leader_id===reportFilterLeader) return true;
+      const agent=allUsers.find(u=>u.id===r.agent_id);
+      return agent&&agent.leader_id===reportFilterLeader;
+    });
+  }
   return refs;
 }
 
