@@ -1071,9 +1071,10 @@ function formatDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('
 
 function elapsedChip(r){
   const ms=Date.now()-new Date(r.status_changed_at||r.created_at).getTime();
-  const h=Math.floor(ms/3600000),d=Math.floor(ms/86400000);
-  const label=d>0?d+'d':(h>0?h+'h':Math.floor(ms/60000)+'m');
-  const cls=d<=1?'fresh':d<=4?'medium':'slow';
+  const h=Math.floor(ms/3600000);
+  const m=Math.floor(ms/60000);
+  const label=h>0?h+'h ':''+(m%60)+'m';
+  const cls=h<1?'fresh':h<3?'medium':'slow';
   const sLabel={new:'Sin atención',quoted:'En cotización',waiting:'Esperando',sold:'Cerrado',nope:'No procedió'}[r.status]||r.status;
   return `<span class="time-chip ${cls}">⏱ ${label} en ${sLabel}</span>`;
 }
@@ -1112,7 +1113,7 @@ function refCard(r,viewerRole){
   const canEdit=viewerRole==='procesador';
   const isOwner=viewerRole==='agente'||viewerRole==='lider';
   const showAgent=viewerRole==='procesador'||viewerRole==='ceo'||viewerRole==='lider';
-  const showElapsed=canEdit&&!['sold','nope'].includes(r.status);
+  const showElapsed=(canEdit||viewerRole==='ceo')&&!['sold','nope'].includes(r.status);
   return `<div class="ref-card${r.status==='new'?' new-pulse':''}">
     <div class="ref-header">
       <div style="flex:1;min-width:0">
@@ -1148,7 +1149,7 @@ function gtRefCard(r,viewerRole){
   const canEdit=viewerRole==='proc-gt';
   const isOwner=viewerRole==='agente'||viewerRole==='lider';
   const showAgent=viewerRole==='proc-gt'||viewerRole==='ceo'||viewerRole==='lider';
-  const showElapsed=canEdit&&!['sold','nope'].includes(r.status);
+  const showElapsed=(canEdit||viewerRole==='ceo')&&!['sold','nope'].includes(r.status);
   const gtIcon=GT_ICONS[r.gt_product]||'✏️';
   const gtLabel=GT_LABELS[r.gt_product]||r.gt_product;
   return `<div class="gt-card${r.status==='new'?' new-pulse':''}">
@@ -1704,18 +1705,63 @@ function renderTable(refs,showAgent){
   </tbody></table></div>`;
 }
 
+let reportFilterAgent = '';  // agent_id or ''
+let reportFilterLeader = ''; // leader_id or ''
+
+function setReportFilter(type, val){
+  if(type==='agent')  reportFilterAgent  = val;
+  if(type==='leader'){ reportFilterLeader = val; reportFilterAgent = ''; }
+  if(type==='reset'){  reportFilterAgent  = ''; reportFilterLeader = ''; }
+  renderReports();
+}
+
+function applyReportFilter(refs){
+  if(reportFilterAgent)  return refs.filter(r=>r.agent_id===reportFilterAgent);
+  if(reportFilterLeader) return refs.filter(r=>r.leader_id===reportFilterLeader);
+  return refs;
+}
+
 function renderReports(){
-  const intlSold=referrals.filter(r=>r.status==='sold');
-  const gtSold=gtReferrals.filter(r=>r.status==='sold');
-  const totalPrima=intlSold.reduce((a,r)=>a+(r.prima||0),0);
-  const totalComm=intlSold.reduce((a,r)=>a+(r.comm_generated||0),0);
-  const totalAgent=intlSold.reduce((a,r)=>a+(r.agent_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
-  const totalLeader=intlSold.reduce((a,r)=>a+(r.leader_comm||0),0);
-  const gtPrima=gtSold.reduce((a,r)=>a+(r.prima||0),0);
-  const gtAgent=gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  // Build filter selectors
+  const leaders  = allUsers.filter(u=>u.role==='lider'&&u.is_active===true);
+  const agents   = allUsers.filter(u=>u.role==='agente'&&u.is_active===true);
+
+  const leaderOpts = leaders.map(l=>`<option value="${l.id}"${reportFilterLeader===l.id?' selected':''}>${l.full_name}</option>`).join('');
+  const agentOpts  = agents.map(a=>`<option value="${a.id}"${reportFilterAgent===a.id?' selected':''}>${a.full_name} (${a.agent_code||'—'})</option>`).join('');
+
+  const activeFilter = reportFilterLeader
+    ? '🏆 '+( allUsers.find(u=>u.id===reportFilterLeader)?.full_name||'Líder')
+    : reportFilterAgent
+    ? '👤 '+(allUsers.find(u=>u.id===reportFilterAgent)?.full_name||'Agente')
+    : '🌐 Todos';
+
+  const filterBar = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text3);font-weight:500;white-space:nowrap">🔍 Filtrar por:</span>
+    <select onchange="setReportFilter('leader',this.value)" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:7px 10px;font-family:var(--font);min-width:180px">
+      <option value="">— Todos los líderes —</option>
+      ${leaderOpts}
+    </select>
+    <select onchange="setReportFilter('agent',this.value)" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:7px 10px;font-family:var(--font);min-width:200px">
+      <option value="">— Todos los agentes —</option>
+      ${agentOpts}
+    </select>
+    ${(reportFilterAgent||reportFilterLeader)?`<button onclick="setReportFilter('reset','')" style="padding:7px 14px;background:var(--red-bg);border:1px solid rgba(240,84,92,.2);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-family:var(--font)">✕ Limpiar filtro</button>`:''}
+    <span style="font-size:11px;color:var(--text3);margin-left:auto">Mostrando: ${activeFilter}</span>
+  </div>`;
+
+  // Apply filters
+  const filteredIntl = applyReportFilter(filterByPeriod(referrals));
+  const filteredGT   = applyReportFilter(filterByPeriod(gtReferrals));
+
+  const intlSold  = filteredIntl.filter(r=>r.status==='sold');
+  const gtSold    = filteredGT.filter(r=>r.status==='sold');
+  const totalPrima  = intlSold.reduce((a,r)=>a+(r.prima||0),0);
+  const totalComm   = intlSold.reduce((a,r)=>a+(r.comm_generated||0),0);
+  const totalAgent  = intlSold.reduce((a,r)=>a+(r.agent_comm||0),0)+gtSold.reduce((a,r)=>a+(r.agent_comm||0),0);
+  const totalLeader = intlSold.reduce((a,r)=>a+(r.leader_comm||0),0);
 
   const countryRows=['ve','do','co'].map(cc=>{
-    const rs=referrals.filter(r=>r.country===cc);
+    const rs=filteredIntl.filter(r=>r.country===cc);
     const s=rs.filter(r=>r.status==='sold');
     const p=s.reduce((a,r)=>a+(r.prima||0),0);
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
@@ -1724,7 +1770,7 @@ function renderReports(){
   }).join('');
 
   const gtProdRows=['auto','casa','comercial','personalizado'].map(p=>{
-    const rs=gtReferrals.filter(r=>r.gt_product===p||(p==='personalizado'&&!['auto','casa','comercial'].includes(r.gt_product)));
+    const rs=filteredGT.filter(r=>r.gt_product===p||(p==='personalizado'&&!['auto','casa','comercial'].includes(r.gt_product)));
     const s=rs.filter(r=>r.status==='sold');
     const comm=s.reduce((a,r)=>a+(r.agent_comm||0),0);
     if(!rs.length) return '';
@@ -1733,18 +1779,58 @@ function renderReports(){
       <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:var(--gt-gold2)">$${comm}</div><div style="font-size:11px;color:var(--text3)">comisiones</div></div></div>`;
   }).join('');
 
+  // Referrals detail table
+  const intlRows = filteredIntl.slice(0,20).map(r=>{
+    const agent=allUsers.find(u=>u.id===r.agent_id);
+    const leader=allUsers.find(u=>u.id===r.leader_id);
+    return `<tr>
+      <td><div class="td-name">${r.client_name}</div></td>
+      <td>${FLAGS[r.country]||''} ${COUNTRY_NAMES[r.country]||r.country}</td>
+      <td style="color:var(--text2)">${r.product}</td>
+      <td>${agent?.full_name||'—'}</td>
+      <td>${leader?.full_name||'—'}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="color:var(--amber)">${r.prima?'$'+r.prima.toLocaleString():'—'}</td>
+      <td style="color:var(--green);font-weight:600">${r.agent_comm?'$'+r.agent_comm:'—'}</td>
+      <td style="color:var(--text3)">${formatDate(r.created_at)}</td>
+    </tr>`;
+  }).join('');
+
+  const gtRows = filteredGT.slice(0,20).map(r=>{
+    const agent=allUsers.find(u=>u.id===r.agent_id);
+    return `<tr>
+      <td><div class="td-name">${r.client_name}</div></td>
+      <td><span class="gt-prod-chip">${GT_ICONS[r.gt_product]||'✏️'} ${GT_LABELS[r.gt_product]||r.gt_product}</span></td>
+      <td>${agent?.full_name||'—'}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="color:var(--gt-gold2);font-weight:600">${r.agent_comm?'$'+r.agent_comm:'—'}</td>
+      <td style="color:var(--text3)">${formatDate(r.created_at)}</td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('mainContent').innerHTML=`
     ${dateFilterBar()}
+    ${filterBar}
     <div class="grid-metrics">
       <div class="metric"><div class="metric-val">$${totalPrima.toLocaleString()}</div><div class="metric-label">Prima Intl.</div></div>
       <div class="metric"><div class="metric-val">$${totalComm.toLocaleString()}</div><div class="metric-label">Com. Intl.</div></div>
-      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgent}</div><div class="metric-label">Pagado agentes (total)</div></div>
+      <div class="metric"><div class="metric-val" style="color:var(--green)">$${totalAgent}</div><div class="metric-label">Comisiones agentes</div></div>
       <div class="metric"><div class="metric-val" style="color:var(--teal)">$${totalLeader}</div><div class="metric-label">Override líderes</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🌎</span><div class="section-title">Internacional — por país</div></div>${countryRows}</div>
-      <div class="card" style="border-color:rgba(212,160,23,.2)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🏅</span><div class="section-title" style="color:var(--gt-gold2)">GoldenTrust USA</div></div>${gtProdRows||'<div style="color:var(--text3);font-size:13px">Sin ventas GT aún</div>'}</div>
-    </div>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🌎</span><div class="section-title">Internacional — por país</div></div>${countryRows||'<div style="color:var(--text3)">Sin resultados</div>'}</div>
+      <div class="card" style="border-color:rgba(212,160,23,.2)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span>🏅</span><div class="section-title" style="color:var(--gt-gold2)">GoldenTrust USA</div></div>${gtProdRows||'<div style="color:var(--text3);font-size:13px">Sin ventas GT</div>'}</div>
+    </div>
+    ${filteredIntl.length?`<div class="card" style="margin-bottom:16px">
+      <div class="section-head" style="margin-bottom:14px"><div class="section-title">🌎 Detalle Internacional (${filteredIntl.length})</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>País</th><th>Producto</th><th>Agente</th><th>Líder</th><th>Estado</th><th>Prima</th><th>Com. agente</th><th>Fecha</th></tr></thead><tbody>${intlRows}</tbody></table></div>
+      ${filteredIntl.length>20?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--text3)">Mostrando 20 de ${filteredIntl.length}</div>`:''}
+    </div>`:''}
+    ${filteredGT.length?`<div class="card" style="border-color:rgba(212,160,23,.2)">
+      <div class="section-head" style="margin-bottom:14px"><div class="section-title">🏅 Detalle GoldenTrust (${filteredGT.length})</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Producto</th><th>Agente</th><th>Estado</th><th>Com. agente</th><th>Fecha</th></tr></thead><tbody>${gtRows}</tbody></table></div>
+      ${filteredGT.length>20?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--text3)">Mostrando 20 de ${filteredGT.length}</div>`:''}
+    </div>`:''}`;
 }
 
 let payFilter = 'all'; // 'all' | 'intl' | 'gt'
