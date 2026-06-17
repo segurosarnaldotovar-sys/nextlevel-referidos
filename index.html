@@ -522,25 +522,27 @@ input[type="email"]:required:invalid{border-color:rgba(240,84,92,0.3)}
 
 <script>
 const SUPABASE_URL = 'https://tgknmnnpcxvxfrnyrecr.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UFHKUqPr6vqRWWS3Y8N84A_8ZRG2E5y';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRna25tbm5wY3h2eGZybnlyZWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MjIyMDUsImV4cCI6MjA5NTM5ODIwNX0.JXBYnx5xl77aqEpFNq7lQI7PJOzvPjV0CGZrUkGZkf0';
 const EDGE_URL = 'https://tgknmnnpcxvxfrnyrecr.supabase.co/functions/v1/notify-referral';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ══════════════════════ WELCOME EMAIL ══════════════════════ */
 async function sendWelcomeEmail(email, full_name, username, password, role, agent_code){
   try{
-    await fetch(EDGE_URL,{
+    const resp = await fetch(EDGE_URL,{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'Authorization':'Bearer '+SUPABASE_KEY
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
       },
       body:JSON.stringify({
         type:'WELCOME_USER',
         record:{email, full_name, username, password, role, agent_code}
       })
     });
-    console.log('Welcome email sent to', email);
+    const result = await resp.json();
+    console.log('Welcome email result:', result);
   }catch(e){
     console.error('Welcome email error:', e);
   }
