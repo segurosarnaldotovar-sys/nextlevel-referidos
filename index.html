@@ -935,26 +935,37 @@ async function registerLeader(){
   if(pass.length<8){showToast('Contrase\u00f1a m\u00ednimo 8 caracteres','&#9888;&#65039;');return;}
   if(allUsers.find(u=>u.username===username)){showToast('Ese usuario ya existe','&#9888;&#65039;');return;}
   let agency=allAgencies.find(a=>a.name===agencyName);
+  console.log('[RL] agency existente:',agency);
   if(!agency){
     const words=agencyName.toUpperCase().replace(/[^A-Z\s]/g,'').split(/\s+/).filter(Boolean);
     let prefix=words.map(w=>w[0]).join('').slice(0,4)||'NL';let pfxCheck=prefix,pfxN=2;
     while(allAgencies.find(a=>a.prefix===pfxCheck)&&pfxN<20)pfxCheck=prefix+(pfxN++);prefix=pfxCheck;
+    console.log('[RL] INSERT agency:',agencyName,'prefix:',prefix);
     const {data:ag,error:ae}=await sbAdmin.from('agencies').insert({name:agencyName,prefix}).select().single();
-    if(ae){showToast('Error creando agencia: '+ae.message,'&#10060;');console.error('Agency insert error:',ae);return;}agency=ag;allAgencies.push(ag);
+    console.log('[RL] agency result:',ag,'error:',ae);
+    if(ae){showToast('Agencia: '+ae.code+' '+ae.message,'\u274c');console.error('agency err:',ae);return;}
+    agency=ag;allAgencies.push(ag);
   }
   const code=agency.prefix+'-L'+String(allUsers.filter(u=>u.role==='lider'&&u.agent_code?.startsWith(agency.prefix)).length+1).padStart(2,'0');
+  console.log('[RL] code:',code);
   try{
     const agentPct=parseFloat(document.getElementById('nl-agent-pct')?.value)||20;const leaderPct=parseFloat(document.getElementById('nl-leader-pct')?.value)||10;
-    await sbAdmin.from('agencies').update({comm_pct:agentPct,override_pct:leaderPct}).eq('id',agency.id);agency.comm_pct=agentPct;agency.override_pct=leaderPct;
+    const {error:ue2}=await sbAdmin.from('agencies').update({comm_pct:agentPct,override_pct:leaderPct}).eq('id',agency.id);
+    console.log('[RL] agency update err:',ue2);
+    agency.comm_pct=agentPct;agency.override_pct=leaderPct;
+    console.log('[RL] INSERT user:',{username,full_name:name,role:'lider',agency_id:agency.id,agent_code:code});
     const {data:u,error}=await sbAdmin.from('users').insert({username,full_name:name,phone,email:leaderEmail,role:'lider',agency_id:agency.id,agent_code:code,created_by:currentUser.id}).select().single();
-    if(error)throw error;
-    await sbAdmin.from('user_passwords').insert({user_id:u.id,password_hash:pass});allUsers.push({...u,_password:pass});
+    console.log('[RL] user result:',u,'error:',error);
+    if(error){showToast('Usuario: '+error.code+' '+error.message,'\u274c');console.error('user err:',error);return;}
+    const {error:pe}=await sbAdmin.from('user_passwords').insert({user_id:u.id,password_hash:pass});
+    console.log('[RL] password err:',pe);
+    allUsers.push({...u,_password:pass});
     await sendWelcomeEmail(leaderEmail,name,username,pass,'lider',code);
     closeModal('modalRegisterLeader');
     ['nl-name','nl-username','nl-phone','nl-agency','nl-email','nl-pass','nl-pass2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('nlCodePreview').style.display='none';updateNlPctPreview();
-    showToast('L\u00edder registrado &middot; Email enviado a '+leaderEmail,'&#10003;');refreshCurrentView();
-  }catch(e){showToast('Error: '+e.message,'&#10060;');}
+    showToast('L\u00edder registrado \u00b7 Email enviado a '+leaderEmail,'\u2713');refreshCurrentView();
+  }catch(e){showToast('Error: '+e.message+' '+e.code,'\u274c');console.error('[RL] catch:',e);}
 }
 
 async function registerAgent(){
@@ -1097,11 +1108,49 @@ function renderAgencies(){
   document.getElementById('mainContent').innerHTML='<div class="card"><div class="section-head" style="margin-bottom:16px"><div class="section-title">Agencias y l\u00edderes</div><button class="btn btn-primary btn-sm" onclick="openModal(\'modalRegisterLeader\')">+ Registrar l\u00edder</button></div><div class="table-wrap"><table><thead><tr><th>C\u00f3digo</th><th>L\u00edder</th><th>Usuario &middot; Clave</th><th>Agencia &middot; Com.</th><th>Tel\u00e9fono</th><th>Email</th><th>Agentes</th><th>Refs.</th><th>Acci\u00f3n</th></tr></thead><tbody>'+(rows||'<tr><td colspan="9" style="text-align:center;color:var(--text3)">Sin l\u00edderes registrados</td></tr>')+'</tbody></table></div></div>';
 }
 
+function responseTimeLabel(r){
+  var created=new Date(r.created_at);
+  var changed=r.status_changed_at?new Date(r.status_changed_at):null;
+  var ref2=changed&&r.status!=='new'?changed:new Date();
+  var ms=ref2-created;
+  var mins=Math.floor(ms/60000);
+  var hrs=Math.floor(mins/60);
+  var days=Math.floor(hrs/24);
+  var label,color;
+  if(r.status==='new'){
+    if(days>0){label=days+'d sin atender';color='var(--red)';}
+    else if(hrs>0){label=hrs+'h sin atender';color='var(--red)';}
+    else{label=mins+'m sin atender';color=mins>30?'var(--amber)':'var(--green)';}
+  }else{
+    if(days>0){label='Resp. '+days+'d';color='var(--red)';}
+    else if(hrs>0){label='Resp. '+hrs+'h';color=hrs>3?'var(--amber)':'var(--green)';}
+    else{label='Resp. '+mins+'m';color='var(--green)';}
+  }
+  return '<span style="font-size:10px;font-weight:600;color:'+color+';white-space:nowrap">&#9201; '+label+'</span>';
+}
+
 function renderTable(refs,showAgent){
   if(!refs.length)return empty();
-  const FLAGS={ve:'&#127894;',do:'&#127465;&#127476;',co:'&#127464;&#127476;'};
-  const COUNTRY_NAMES={ve:'Venezuela',do:'R. Dominicana',co:'Colombia'};
-  return'<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pa\u00eds</th><th>Producto</th>'+(showAgent?'<th>Agente</th>':'')+'<th>Estado</th><th>Prima</th><th>Comisi\u00f3n</th><th>Fecha</th></tr></thead><tbody>'+refs.map(r=>'<tr><td><div class="td-name">'+r.client_name+'</div></td><td>'+(FLAGS[r.country]||'&#127760;')+' '+(COUNTRY_NAMES[r.country]||r.country)+'</td><td style="color:var(--text2)">'+r.product+'</td>'+(showAgent?'<td>'+(allUsers.find(u=>u.id===r.agent_id)?.full_name||'\u2014')+'</td>':'')+'<td>'+statusBadge(r.status)+'</td><td>'+(r.prima?'$'+Number(r.prima).toLocaleString():'\u2014')+'</td><td style="color:var(--green);font-weight:600">'+(r.comm_generated?'$'+Number(r.comm_generated).toLocaleString():'\u2014')+'</td><td style="color:var(--text3)">'+formatDate(r.created_at)+'</td></tr>').join('')+'</tbody></table></div>';
+  var FLAGS={ve:'&#127894;',do:'&#127465;&#127476;',co:'&#127464;&#127476;'};
+  var COUNTRY_NAMES={ve:'Venezuela',do:'R. Dominicana',co:'Colombia'};
+  var header='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pa\u00eds</th><th>Producto</th>'+(showAgent?'<th>Agente</th>':'')+'<th>Estado</th><th>Respuesta</th><th>Prima</th><th>Comisi\u00f3n</th><th>Fecha</th></tr></thead><tbody>';
+  var rows=refs.map(function(r){
+    var notesCount=(r.referral_notes||[]).length;
+    var agentName=showAgent?(allUsers.find(function(u){return u.id===r.agent_id;})||{full_name:'\u2014'}).full_name:'';
+    var row='<tr style="cursor:pointer" onclick="openRefDetail(\''+r.id+'\')">';
+    row+='<td><div class="td-name">'+r.client_name+'</div>'+(notesCount?'<div style="font-size:10px;color:var(--purple2);margin-top:2px">&#128172; '+notesCount+' nota'+(notesCount>1?'s':'')+'</div>':'')+'</td>';
+    row+='<td>'+(FLAGS[r.country]||'&#127760;')+' '+(COUNTRY_NAMES[r.country]||r.country)+'</td>';
+    row+='<td style="color:var(--text2)">'+r.product+'</td>';
+    if(showAgent)row+='<td>'+agentName+'</td>';
+    row+='<td>'+statusBadge(r.status)+'</td>';
+    row+='<td>'+responseTimeLabel(r)+'</td>';
+    row+='<td>'+(r.prima?'$'+Number(r.prima).toLocaleString():'\u2014')+'</td>';
+    row+='<td style="color:var(--green);font-weight:600">'+(r.comm_generated?'$'+Number(r.comm_generated).toLocaleString():'\u2014')+'</td>';
+    row+='<td style="color:var(--text3)">'+formatDate(r.created_at)+'</td>';
+    row+='</tr>';
+    return row;
+  }).join('');
+  return header+rows+'</tbody></table></div>';
 }
 
 function renderCommissions(){
